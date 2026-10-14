@@ -1,0 +1,1349 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>body{margin:0}</style></head><body>
+<title>Nivosk Smart Signal Demo</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: a video-style player. 16:9 live stage, captions and chapter rail beneath. One deliberate dark control-room look. */
+:root{
+  --ink:#0a1120; --ink2:#101a2c; --ink3:#16233a;
+  --panel:rgba(8,15,28,.88); --line:rgba(150,180,220,.2);
+  --fg:#e9eef6; --muted:#9aabc3; --dim:#6c7d96;
+  --sun:#f28c28; --teal:#19a9a1; --navy:#1f3b73;
+  --go:#2fd27a; --amber:#ffb21f; --stop:#ff4b4b; --cyan:#4cc9f0;
+  --display:'Barlow Condensed','Arial Narrow',sans-serif;
+  --body:'Barlow','Segoe UI',system-ui,sans-serif;
+  --mono:'JetBrains Mono',ui-monospace,Consolas,monospace;
+  color-scheme:dark;
+}
+html,body{background:var(--ink);color:var(--fg)}
+body{font-family:var(--body);font-size:15px;line-height:1.5}
+.page{max-width:1240px;margin:0 auto;padding-block:18px 40px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.top{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:14px}
+.logo{background:#fff;border-radius:8px;padding:6px 10px;display:flex;align-items:center}
+.logo img{height:34px;width:auto;display:block}
+.top h1{font-family:var(--display);font-weight:600;font-size:clamp(20px,2.6vw,28px);line-height:1.1;margin:0;text-wrap:balance;letter-spacing:.01em}
+.top p{margin:2px 0 0;color:var(--muted);font-size:14px}
+.top .t{flex:1;min-width:240px}
+
+.stage{position:relative;width:100%;aspect-ratio:16/9;container-type:inline-size;overflow:hidden;border-radius:12px;background:#3a3d40;box-shadow:0 20px 50px rgba(0,0,0,.45);border:1px solid var(--line)}
+#world{position:absolute;inset:0;width:100%;height:100%;display:block}
+#ov{position:absolute;inset:0;pointer-events:none}
+.pnl{position:absolute;background:var(--panel);border:1px solid var(--line);border-radius:.7cqw;padding:1.1cqw 1.3cqw;font-size:1.12cqw;line-height:1.35;color:var(--fg);box-shadow:0 .6cqw 2cqw rgba(0,0,0,.4);animation:pin .6s ease both}
+@keyframes pin{from{opacity:0;transform:translateY(.8cqw)}to{opacity:1;transform:none}}
+.pnl h3{font-family:var(--display);font-size:2cqw;font-weight:600;margin:.3cqw 0 .7cqw;line-height:1.05;text-wrap:balance}
+.pnl h4{font-family:var(--display);font-size:1.15cqw;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:.9cqw 0 .4cqw}
+.pnl p{margin:.2cqw 0 .6cqw;color:#c9d4e4}
+.tag{display:inline-flex;align-items:center;gap:.4cqw;font-family:var(--display);font-weight:600;font-size:.98cqw;letter-spacing:.12em;text-transform:uppercase;padding:.15cqw .6cqw;border-radius:.3cqw;background:rgba(255,255,255,.08);color:var(--muted)}
+.tag.red{background:rgba(255,75,75,.16);color:#ff8a8a}.tag.green{background:rgba(47,210,122,.15);color:#7debae}.tag.amber{background:rgba(255,178,31,.16);color:#ffcf6e}.tag.cyan{background:rgba(76,201,240,.15);color:#8edcf6}.tag.sun{background:rgba(242,140,40,.18);color:#ffb26b}
+.mono{font-family:var(--mono)}
+.num{font-variant-numeric:tabular-nums}
+.kpi{display:flex;align-items:baseline;gap:.8cqw;margin-top:.5cqw}
+.kpi b{font-family:var(--mono);font-size:2.3cqw;font-weight:600}
+.kpi small{color:var(--muted);font-size:1cqw;line-height:1.2}
+.row{display:grid;grid-template-columns:5.5cqw 1fr 5cqw;align-items:center;gap:.6cqw;padding:.28cqw 0;border-bottom:1px solid rgba(255,255,255,.06)}
+.row:last-child{border-bottom:0}
+.bar{height:.8cqw;background:rgba(255,255,255,.08);border-radius:.4cqw;overflow:hidden}
+.bar i{display:block;height:100%;border-radius:.4cqw;transition:width .5s ease}
+.dot{display:inline-block;width:.85cqw;height:.85cqw;border-radius:50%;vertical-align:middle;box-shadow:0 0 .6cqw currentColor}
+.dot.G{background:var(--go);color:var(--go)}.dot.A{background:var(--amber);color:var(--amber)}.dot.R{background:var(--stop);color:var(--stop)}.dot.F{background:var(--amber);color:var(--amber);animation:blink 1s steps(1) infinite}
+@keyframes blink{50%{opacity:.15}}
+.flow{display:flex;flex-direction:column;gap:.35cqw}
+.fs{display:flex;align-items:center;gap:.6cqw;padding:.35cqw .6cqw;border-radius:.35cqw;background:rgba(255,255,255,.04);border:1px solid transparent;color:var(--muted);transition:all .25s}
+.fs.on{background:rgba(76,201,240,.13);border-color:rgba(76,201,240,.5);color:var(--fg)}
+.fs .r{margin-left:auto;font-family:var(--mono);font-size:.95cqw}
+.log{font-family:var(--mono);font-size:.95cqw;display:flex;flex-direction:column;gap:.25cqw;color:#c3cfe0}
+.log div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.log .t{color:var(--dim);margin-right:.6cqw}
+.inset{padding:0;overflow:hidden}
+.inset canvas{display:block;width:100%;height:auto}
+.inset .cap{position:absolute;left:.8cqw;top:.6cqw;font-family:var(--mono);font-size:.95cqw;color:#fff;text-shadow:0 1px 2px #000;display:flex;gap:.8cqw;align-items:center}
+.rec{display:inline-block;width:.8cqw;height:.8cqw;border-radius:50%;background:#ff3b3b;animation:blink 1.2s steps(1) infinite}
+.legend{display:grid;grid-template-columns:1fr 1fr;gap:.3cqw 1.2cqw}
+.legend div{display:flex;align-items:center;gap:.5cqw}
+.sw{width:1cqw;height:1cqw;border:.18cqw solid;border-radius:.15cqw}
+.legend .n{margin-left:auto;font-family:var(--mono)}
+.big{font-family:var(--display);font-weight:600;font-size:4.2cqw;line-height:1;text-wrap:balance;margin:.8cqw 0}
+.chips{display:flex;flex-wrap:wrap;gap:.5cqw;margin-top:1cqw}
+.chip{font-size:1.05cqw;padding:.35cqw .8cqw;border-radius:2cqw;border:1px solid var(--line);background:rgba(255,255,255,.05)}
+.logochip{background:#fff;border-radius:.5cqw;padding:.5cqw .9cqw;display:inline-block}
+.logochip img{height:4cqw;display:block}
+.ocr{display:flex;gap:.3cqw;margin:.4cqw 0}
+.ocr span{font-family:var(--mono);font-weight:600;font-size:1.7cqw;width:2.1cqw;text-align:center;padding:.25cqw 0;border-radius:.25cqw;background:rgba(255,255,255,.07);opacity:0;transform:translateY(.4cqw);transition:all .25s}
+.ocr span.on{opacity:1;transform:none;background:rgba(47,210,122,.15)}
+.ocr span.gap{width:.7cqw;background:none}
+.ck{color:var(--go);font-weight:700}
+.steps{display:flex;flex-direction:column;gap:.3cqw}
+.st{display:flex;gap:.6cqw;align-items:center;opacity:.35;transition:opacity .3s}
+.st.on{opacity:1}
+.st .i{width:1.5cqw;height:1.5cqw;border-radius:50%;display:grid;place-items:center;font-size:.9cqw;font-weight:700;background:rgba(255,255,255,.1)}
+.st.on .i{background:var(--go);color:#062}
+.cursor{position:absolute;width:2cqw;height:2cqw;transition:left 1.1s cubic-bezier(.5,0,.2,1),top 1.1s cubic-bezier(.5,0,.2,1);z-index:5;filter:drop-shadow(0 2px 3px rgba(0,0,0,.6))}
+.cursor.click::after{content:"";position:absolute;left:-.8cqw;top:-.8cqw;width:2cqw;height:2cqw;border-radius:50%;border:.2cqw solid #fff;animation:ripple .5s ease-out forwards}
+@keyframes ripple{from{transform:scale(.3);opacity:1}to{transform:scale(1.6);opacity:0}}
+.btn{display:inline-flex;align-items:center;gap:.5cqw;padding:.45cqw 1cqw;border-radius:.4cqw;font-weight:600;font-size:1.1cqw;border:1px solid var(--line);background:rgba(255,255,255,.06)}
+.btn.y{background:#3a2c05;border-color:#d39b1a;color:#ffd166}
+.btn.ok{background:#0d3a24;border-color:#2fd27a;color:#9af0c2}
+.btn.no{background:#3a1212;border-color:#a33;color:#ff9c9c}
+.btn.pressed{transform:scale(.96);filter:brightness(1.4)}
+.dash{left:2%;top:3%;width:96%;height:94%;padding:0;display:grid;grid-template-rows:auto 1fr;background:rgba(9,15,27,.97)}
+.dhead{display:flex;align-items:center;gap:1cqw;padding:.8cqw 1.3cqw;border-bottom:1px solid var(--line)}
+.dhead b{font-family:var(--display);font-size:1.7cqw;font-weight:600}
+.dgrid{display:grid;grid-template-columns:1.25fr 1fr 1.05fr;grid-template-rows:auto 1fr;gap:.9cqw;padding:.9cqw 1.3cqw;min-height:0}
+.tile{background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.07);border-radius:.5cqw;padding:.8cqw 1cqw;min-width:0;min-height:0;position:relative;overflow:hidden}
+.tile h4{margin-top:0}
+.arch{grid-column:1/-1;display:flex;align-items:center;gap:1cqw;font-size:1.02cqw}
+.node{border:1px solid var(--line);border-radius:.45cqw;padding:.5cqw .8cqw;background:rgba(255,255,255,.04);line-height:1.25}
+.node b{display:block;font-family:var(--display);font-size:1.25cqw;font-weight:600}
+.node small{color:var(--muted)}
+.node.n{border-color:rgba(76,201,240,.45)}
+.node.r{border-color:rgba(242,140,40,.5)}
+.fib{flex:1;position:relative;height:2.6cqw;min-width:6cqw}
+.fib::before{content:"";position:absolute;left:0;right:0;top:50%;height:.3cqw;margin-top:-.15cqw;background:repeating-linear-gradient(90deg,#f28c28 0 1cqw,#c06a18 1cqw 2cqw);border-radius:.2cqw}
+.fib .pk{position:absolute;top:50%;width:.9cqw;height:.9cqw;margin-top:-.45cqw;border-radius:50%;background:#fff;box-shadow:0 0 .8cqw #4cc9f0;animation:pk 1.8s linear infinite}
+.fib .pk.b{background:#ffd166;box-shadow:0 0 .8cqw #ffd166;animation-direction:reverse;animation-duration:2.6s}
+@keyframes pk{from{left:0}to{left:calc(100% - .9cqw)}}
+.fib span{position:absolute;left:0;right:0;text-align:center;top:-.4cqw;font-size:.85cqw;color:var(--muted);white-space:nowrap}
+.fib span.lo{top:auto;bottom:-.6cqw}
+.vq{display:grid;grid-template-columns:auto 1fr;gap:.8cqw;align-items:start}
+.plate{font-family:var(--mono);font-weight:600;font-size:1.5cqw;background:#fff;color:#111;border:.18cqw solid #111;border-radius:.3cqw;padding:.1cqw .6cqw .1cqw 1.6cqw;position:relative;display:inline-block;letter-spacing:.04em}
+.plate::before{content:"IND";position:absolute;left:.15cqw;top:.2cqw;bottom:.2cqw;width:1.1cqw;background:#1d4fa8;color:#fff;font-size:.55cqw;writing-mode:vertical-rl;text-orientation:upright;display:grid;place-items:center;border-radius:.1cqw;letter-spacing:0}
+.thumbs{display:flex;gap:.4cqw;margin:.5cqw 0}
+.thumbs canvas{width:6cqw;height:auto;border-radius:.25cqw;border:1px solid var(--line)}
+.toast{position:absolute;left:50%;bottom:1.2cqw;transform:translateX(-50%);background:#0d3a24;border:1px solid #2fd27a;color:#bdf5d7;padding:.5cqw 1.2cqw;border-radius:.5cqw;font-size:1.1cqw;white-space:nowrap;animation:pin .4s ease both}
+.gantt{display:grid;grid-template-columns:11cqw repeat(13,1fr);gap:.2cqw;font-size:.92cqw;align-items:center}
+.gantt .h{color:var(--dim);text-align:center;font-family:var(--mono);font-size:.8cqw}
+.gantt .lb{color:#c9d4e4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gantt .b{height:1.15cqw;border-radius:.25cqw}
+.ms{display:flex;gap:.6cqw;margin-top:.7cqw;flex-wrap:wrap}
+.ms div{flex:1;min-width:8cqw;border:1px solid var(--line);border-radius:.4cqw;padding:.4cqw .6cqw;font-size:.95cqw;color:var(--muted)}
+.ms b{display:block;font-family:var(--mono);font-size:1.5cqw;color:var(--fg)}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:1.2cqw}
+.mlist{display:flex;flex-direction:column;gap:.45cqw}
+.mlist div{display:flex;gap:.6cqw;align-items:baseline}
+.mlist b{font-family:var(--display);font-weight:600;font-size:1.3cqw}
+.mlist i{font-style:normal;color:var(--sun);font-family:var(--mono);font-size:1cqw}
+.contact{display:flex;gap:1.4cqw;flex-wrap:wrap;font-size:1cqw;color:var(--muted);border-top:1px solid var(--line);padding-top:.7cqw;margin-top:.8cqw}
+.contact b{color:var(--fg);font-weight:600}
+
+/* below-stage */
+.under{display:grid;grid-template-columns:auto 1fr;gap:12px 18px;align-items:start;margin-top:14px}
+.ctrls{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.cbtn{appearance:none;border:1px solid var(--line);background:var(--ink2);color:var(--fg);border-radius:8px;height:38px;min-width:38px;padding:0 10px;display:inline-flex;align-items:center;justify-content:center;gap:6px;font:500 14px var(--body);cursor:pointer}
+.cbtn:hover{background:var(--ink3)}
+.cbtn:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+.cbtn.on{border-color:var(--sun);color:#ffc08a}
+.cbtn svg{width:16px;height:16px;fill:currentColor}
+.time{font-family:var(--mono);font-size:13px;color:var(--muted);margin-left:6px;font-variant-numeric:tabular-nums}
+.capbox{min-width:0}
+.kick{font-family:var(--display);font-weight:600;letter-spacing:.14em;text-transform:uppercase;font-size:13px;color:var(--sun)}
+.capbox h2{font-family:var(--display);font-weight:600;font-size:26px;line-height:1.1;margin:2px 0 6px;text-wrap:balance}
+.capbox p{margin:0;color:#c9d4e4;max-width:75ch;font-size:16px}
+.rail{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:4px;margin-top:16px}
+.seg{appearance:none;background:none;border:0;padding:0;cursor:pointer;text-align:left;color:var(--dim);font:500 12px/1.25 var(--body);min-width:0}
+.seg .pb{height:5px;border-radius:3px;background:rgba(255,255,255,.12);overflow:hidden;margin-bottom:6px}
+.seg .pb i{display:block;height:100%;width:0;background:var(--sun)}
+.seg.done .pb i{width:100%;background:#8a5a2c}
+.seg.cur{color:var(--fg)}
+.seg span{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.seg:focus-visible{outline:2px solid var(--cyan);outline-offset:3px;border-radius:3px}
+.stage:fullscreen{width:min(100vw,177.78vh);height:auto;border-radius:0;border:0;margin:auto}
+.stage::backdrop{background:#000}
+.notes{margin-top:26px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;color:var(--muted);font-size:14px;border-top:1px solid var(--line);padding-top:16px}
+.notes b{display:block;color:var(--fg);font-family:var(--display);font-size:17px;font-weight:600;margin-bottom:2px}
+@media (max-width:760px){
+  .under{grid-template-columns:1fr}
+  .seg span{display:none}
+  .notes{grid-template-columns:1fr}
+  .capbox h2{font-size:22px}
+}
+</style>
+
+<div class="page">
+  <div class="top">
+    <div class="logo"><img alt="NIVOSK" src="data:image/webp;base64,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"></div>
+    <div class="t">
+      <h1>AI-Powered Adaptive Traffic Signal Management System</h1>
+      <p>Animated walkthrough of solution proposal PROP-AISIG-2026-002 · Nivosk Technologies for the Rapturous team</p>
+    </div>
+  </div>
+
+  <div class="stage" id="stage">
+    <canvas id="world" aria-label="Live simulation of an AI-controlled four-way junction"></canvas>
+    <div id="ov"></div>
+  </div>
+
+  <div class="under">
+    <div class="ctrls">
+      <button class="cbtn" id="bPrev" title="Previous chapter" aria-label="Previous chapter"><svg viewBox="0 0 24 24"><path d="M6 5h2v14H6zM20 5v14L9 12z"/></svg></button>
+      <button class="cbtn" id="bPlay" title="Play / pause" aria-label="Pause"><svg viewBox="0 0 24 24" id="playIco"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg></button>
+      <button class="cbtn" id="bNext" title="Next chapter" aria-label="Next chapter"><svg viewBox="0 0 24 24"><path d="M16 5h2v14h-2zM4 5v14l11-7z"/></svg></button>
+      <button class="cbtn" id="bVoice" title="Spoken narration" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4zM16 8a5 5 0 0 1 0 8l-1.2-1.4a3 3 0 0 0 0-5.2zM18.5 5a9 9 0 0 1 0 14l-1.2-1.5a7 7 0 0 0 0-11z"/></svg>Narration</button>
+      <button class="cbtn" id="bFs" title="Full screen" aria-label="Full screen"><svg viewBox="0 0 24 24"><path d="M4 4h6v2H6v4H4zM14 4h6v6h-2V6h-4zM4 14h2v4h4v2H4zM18 14h2v6h-6v-2h4z"/></svg></button>
+      <span class="time" id="tm">0:00</span>
+    </div>
+    <div class="capbox" aria-live="polite">
+      <div class="kick" id="kick"></div>
+      <h2 id="ctitle"></h2>
+      <p id="ctext"></p>
+    </div>
+  </div>
+  <div class="rail" id="rail"></div>
+
+  <div class="notes">
+    <div><b>What you are watching</b>A live simulation, not a recording. Vehicles follow realistic driving physics and the signal logic follows the decision engine in Figure 5 of the proposal.</div>
+    <div><b>Numbers on screen</b>Counts, queues, green times and wasted green are measured from this simulation as it runs. They show how the system behaves and are not field results.</div>
+    <div><b>Navigate</b>Use the chapter bar to jump to any step. Turn on narration to hear each step read aloud. The junction keeps running between chapters.</div>
+  </div>
+</div>
+
+<script>
+(() => {
+'use strict';
+const LOGO = document.querySelector('.logo img').src;
+/* ============================ utilities ============================ */
+const clamp=(v,a,b)=>v<a?a:v>b?b:v, lerp=(a,b,t)=>a+(b-a)*t;
+const easeIO=t=>t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2;
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function wpick(items,r=Math.random){let s=0;for(const it of items)s+=it[1];let x=r()*s;for(const it of items){x-=it[1];if(x<=0)return it[0]}return items[items.length-1][0]}
+const $=id=>document.getElementById(id);
+function rr(g,x,y,w,h,r){r=Math.min(r,w/2,h/2);g.beginPath();g.moveTo(x+r,y);g.lineTo(x+w-r,y);g.quadraticCurveTo(x+w,y,x+w,y+r);g.lineTo(x+w,y+h-r);g.quadraticCurveTo(x+w,y+h,x+w-r,y+h);g.lineTo(x+r,y+h);g.quadraticCurveTo(x,y+h,x,y+h-r);g.lineTo(x,y+r);g.quadraticCurveTo(x,y,x+r,y);g.closePath()}
+function poly(g,pts){g.beginPath();g.moveTo(pts[0][0],pts[0][1]);for(let i=1;i<pts.length;i++)g.lineTo(pts[i][0],pts[i][1]);g.closePath()}
+function shade(hex,f){const n=parseInt(hex.slice(1),16);let r=n>>16,g=n>>8&255,b=n&255;if(f<1){r*=f;g*=f;b*=f}else{r+= (255-r)*(f-1);g+=(255-g)*(f-1);b+=(255-b)*(f-1)}return'rgb('+(r|0)+','+(g|0)+','+(b|0)+')'}
+const CLOCK0=10*3600+42*60;
+function clock(t){const s=Math.floor(CLOCK0+t);const h=Math.floor(s/3600)%24,m=Math.floor(s/60)%60,ss=s%60;return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+':'+String(ss).padStart(2,'0')}
+
+/* ============================ geometry ============================ */
+// World in metres. x = east, y = south (screen down). India drives on the LEFT.
+const LW=3.5, MEDH=0.5, HALF=7.5, STOP=12.6, FAR=175, STEP=0.5;
+const LANE_OFF=[MEDH+LW/2, MEDH+LW*1.5];
+const APPS=['N','E','S','W'];
+const DIR={N:[0,1],S:[0,-1],E:[-1,0],W:[1,0]};
+const NAME={N:'North',E:'East',S:'South',W:'West'};
+const LEFT=d=>[d[1],-d[0]];
+const pt=(along,lat,d)=>{const l=LEFT(d);return[along*d[0]+lat*l[0],along*d[1]+lat*l[1]]};
+
+function buildPath(app,lane,move){
+  const d=DIR[app],l=LEFT(d),off=LANE_OFF[lane];
+  const raw=[];
+  const line=(a,b,n)=>{for(let i=0;i<n;i++){const t=i/n;raw.push([lerp(a[0],b[0],t),lerp(a[1],b[1],t)])}};
+  const start=pt(-FAR,off,d), stopP=pt(-STOP,off,d);
+  line(start,stopP,Math.ceil((FAR-STOP)/0.25));
+  let nd,exitOff;
+  if(move==='S'){nd=d;exitOff=off}else if(move==='L'){nd=l;exitOff=LANE_OFF[1]}else{nd=[-l[0],-l[1]];exitOff=LANE_OFF[0]}
+  const exitP=pt(STOP,exitOff,nd), endP=pt(FAR,exitOff,nd);
+  if(move==='S'){line(stopP,exitP,Math.ceil(2*STOP/0.25))}
+  else{
+    const leg=(exitP[0]-stopP[0])*d[0]+(exitP[1]-stopP[1])*d[1], k=0.552*leg;
+    const c1=[stopP[0]+d[0]*k,stopP[1]+d[1]*k], c2=[exitP[0]-nd[0]*k,exitP[1]-nd[1]*k];
+    for(let i=0;i<160;i++){const t=i/160,u=1-t;raw.push([u*u*u*stopP[0]+3*u*u*t*c1[0]+3*u*t*t*c2[0]+t*t*t*exitP[0],u*u*u*stopP[1]+3*u*u*t*c1[1]+3*u*t*t*c2[1]+t*t*t*exitP[1]])}
+  }
+  line(exitP,endP,Math.ceil((FAR-STOP)/0.25));raw.push(endP);
+  const cum=[0];for(let i=1;i<raw.length;i++)cum.push(cum[i-1]+Math.hypot(raw[i][0]-raw[i-1][0],raw[i][1]-raw[i-1][1]));
+  const total=cum[cum.length-1],n=Math.floor(total/STEP)+1,X=new Float32Array(n),Y=new Float32Array(n),H=new Float32Array(n);
+  let j=0;let sExit=0;
+  for(let i=0;i<n;i++){const s=i*STEP;while(j<cum.length-2&&cum[j+1]<s)j++;const t=(s-cum[j])/((cum[j+1]-cum[j])||1);X[i]=lerp(raw[j][0],raw[j+1][0],t);Y[i]=lerp(raw[j][1],raw[j+1][1],t)}
+  for(let i=0;i<n;i++){const a=Math.max(0,i-1),b=Math.min(n-1,i+1);H[i]=Math.atan2(Y[b]-Y[a],X[b]-X[a])}
+  const sStop=FAR-STOP;
+  // exit begins where the path is STOP metres past centre along nd
+  for(let i=0;i<n;i++){if((X[i]*nd[0]+Y[i]*nd[1])>=STOP-0.01&&i*STEP>sStop+1){sExit=i*STEP;break}}
+  return {app,lane,move,X,Y,H,n,len:(n-1)*STEP,sStop,sExit,nd};
+}
+const PATHS={};
+for(const a of APPS){PATHS[a]=[{S:buildPath(a,0,'S'),R:buildPath(a,0,'R')},{S:buildPath(a,1,'S'),L:buildPath(a,1,'L')}]}
+function pathAt(p,s){let f=s/STEP;let i=Math.floor(f);if(i<0){i=0;f=0}if(i>=p.n-1){i=p.n-2;f=p.n-1}const t=f-i;let h0=p.H[i],h1=p.H[i+1];let dh=h1-h0;if(dh>Math.PI)dh-=2*Math.PI;if(dh<-Math.PI)dh+=2*Math.PI;return[lerp(p.X[i],p.X[i+1],t),lerp(p.Y[i],p.Y[i+1],t),h0+dh*t]}
+
+/* ============================ vehicles ============================ */
+const SPECS={
+  bike:{yolo:'two-wheeler',L:2.0,W:0.8,H:1.7,v0:[11,14],a:2.3,b:3,T:0.9,s0:1.1,area:1.6,box:'#ffd166'},
+  auto:{yolo:'auto',L:2.7,W:1.35,H:1.75,v0:[8.5,10.5],a:1.5,b:2.6,T:1.1,s0:1.5,area:4,box:'#9be15d'},
+  car:{yolo:'car',L:4.0,W:1.72,H:1.5,v0:[12,15],a:1.9,b:2.8,T:1.1,s0:2,area:9,box:'#4cc9f0'},
+  suv:{yolo:'car/SUV',L:4.6,W:1.86,H:1.75,v0:[12,14.5],a:1.7,b:2.8,T:1.2,s0:2,area:9,box:'#4cc9f0'},
+  lcv:{yolo:'LCV',L:4.8,W:1.8,H:2.2,v0:[10,12],a:1.3,b:2.5,T:1.3,s0:2.2,area:15,box:'#c77dff'},
+  bus:{yolo:'bus',L:11.5,W:2.55,H:3.1,v0:[9,11],a:1.0,b:2.2,T:1.5,s0:2.5,area:40,box:'#ff8c5a'},
+  truck:{yolo:'truck (HCV)',L:9.8,W:2.5,H:3.3,v0:[8,10],a:0.85,b:2.0,T:1.6,s0:2.5,area:45,box:'#ff4d6d'}
+};
+const MIX=[['bike',40],['car',24],['auto',10],['suv',8],['lcv',6],['bus',5],['truck',7]];
+const CAR_COLS=[['#efefec',30],['#c4c7ca',22],['#7d8389',12],['#b0252d',9],['#1f4e8c',8],['#1c1e22',8],['#8a6b4f',5],['#6d1f2b',4],['#d9d2bd',2]];
+const SHIRTS=['#2b4a7a','#7a2b2b','#e0dccf','#3a6b3a','#444','#b5832d','#5d3f7a','#1f6f8b','#c96a2e'];
+const HELMETS=['#111','#d42020','#f2f2f2','#1d4fa8','#222','#e8c547','#333'];
+const TARPS=['#2d6fb3','#2e8b57','#d9a521','#a8322d','#3466a8'];
+const CABS=['#e07b1f','#d9a521','#c33a2e','#2e6fa8','#e8e4d8'];
+const BUSCOL=[['#c62d2d',6],['#2f7d3a',3],['#1f5aa6',1]];
+let VID=100;
+function newVehicle(app,type,move,lane,s,v){
+  const sp=SPECS[type];
+  const veh={id:++VID,type,sp,app,move,lane,path:PATHS[app][lane][move],s,v:v||0,acc:0,
+    v0:lerp(sp.v0[0],sp.v0[1],Math.random()),lat:type==='bike'?(Math.random()*1.7-0.85):(Math.random()*0.3-0.15),
+    conf:0.86+Math.random()*0.13,trail:[],trailT:0,brake:false,amber:null,crossed:false,born:simT,ignore:false};
+  if(type==='car'||type==='suv'){veh.body=wpick(CAR_COLS)}
+  else if(type==='bike'){veh.body=Math.random()<.5?'#1a1a1a':wpick([['#7a1515',1],['#1f3f7a',1],['#555',1],['#ddd',1]]);veh.shirt=SHIRTS[Math.random()*SHIRTS.length|0];veh.helmet=HELMETS[Math.random()*HELMETS.length|0];veh.pillion=Math.random()<.25?SHIRTS[Math.random()*SHIRTS.length|0]:null}
+  else if(type==='auto'){veh.body='#2f8a3c'}
+  else if(type==='bus'){veh.body=wpick(BUSCOL)}
+  else if(type==='truck'){veh.body=CABS[Math.random()*CABS.length|0];veh.tarp=TARPS[Math.random()*TARPS.length|0]}
+  else if(type==='lcv'){veh.body=Math.random()<.6?'#ece9e0':'#c9ccd0';veh.load=Math.random()<.6}
+  return veh;
+}
+
+/* ============================ simulation state ============================ */
+let simT=0, vehicles=[];
+const DEMAND={N:.33,E:.16,S:.19,W:.04};
+const BL={},nextArr={};
+const MET={};
+const STATS={crossed:{N:0,E:0,S:0,W:0},byType:{},waste:{fixed:0,adaptive:0},wasteCycle:0};
+const ctrl={mode:'fixed',phase:'G',cur:'W',t:0,planG:30,seq:0,lastEnd:{N:0,E:0,S:0,W:0},log:[],excluded:null,token:null,tokenT:0,
+  fixedG:25,CYCLE:120,cq:[],plan:{},cycleStart:0,cycleN:0,order:['W','N','E','S'],Gmin:10,Gmax:45,amber:3,allred:2,ext:0,lastDecision:null,decT:0,frozenN:false,link:true,buffered:0};
+const FX={fov:0,boxes:0,trails:0,zones:0,labels:[],dim:0,fibre:0,cut:false,cabinet:0,focusApp:null,arrows:0};
+const EFX=[];
+function logc(txt,kind){ctrl.log.unshift({t:simT,txt,kind:kind||''});if(ctrl.log.length>14)ctrl.log.length=14}
+
+function expRand(rate){return -Math.log(1-Math.random())/rate}
+function newArrivalItem(app){
+  const type=wpick(MIX);
+  let move=wpick([['S',66],['L',19],['R',15]]);
+  if((type==='bus'||type==='truck')&&move==='R'&&Math.random()<.5)move='S';
+  let lane=move==='L'?1:move==='R'?0:(Math.random()<(type==='bike'||type==='auto'?.62:.45)?1:0);
+  return{type,move,lane};
+}
+function resetSim(){
+  vehicles=[];simT=0;EFX.length=0;
+  for(const a of APPS){BL[a]=[[],[]];nextArr[a]=expRand(DEMAND[a]);STATS.crossed[a]=0}
+  STATS.byType={};STATS.waste.fixed=0;STATS.waste.adaptive=0;
+  Object.assign(ctrl,{mode:'fixed',phase:'G',cur:'W',t:14,planG:25,cq:[],plan:{},cycleStart:0,cycleN:0,seq:1,lastEnd:{N:-38,E:-24,S:-10,W:-60},log:[],excluded:null,token:null,frozenN:false,link:true,buffered:0,ext:0,lastDecision:null});
+  // prefill queues (metres of queue per approach)
+  const fill={N:118,E:34,S:44,W:0};
+  for(const a of APPS){
+    for(const lane of [0,1]){
+      let pos=PATHS[a][lane].S.sStop-0.8; const lim=PATHS[a][lane].S.sStop-fill[a]*(lane?1:.9);
+      while(true){
+        const it=newArrivalItem(a); if(it.move==='L'&&lane===0)it.move='S'; if(it.move==='R'&&lane===1)it.move='S';
+        const L=SPECS[it.type].L; const s=pos-L/2; if(s-L/2<lim)break;
+        const v=newVehicle(a,it.type,it.move,lane,s,0);vehicles.push(v);
+        pos=s-L/2-SPECS[it.type].s0*(0.9+Math.random()*0.5)-(it.type==='bike'&&Math.random()<.45?-1.4:0);
+      }
+    }
+    for(let k=0;k<(a==='N'?14:a==='W'?0:3);k++){const it=newArrivalItem(a);BL[a][it.lane].push(it)}
+  }
+  // some traffic already leaving the junction (green West + leftovers)
+  for(let k=0;k<16;k++){
+    const a=APPS[k%4],lane=k%2,mv=lane?'S':'S',p=PATHS[a][lane][mv];
+    const veh=newVehicle(a,wpick(MIX),mv,lane,p.sExit+8+Math.random()*120,9);veh.crossed=true;
+    if(!vehicles.some(o=>o.app===a&&o.lane===lane&&Math.abs(o.s-veh.s)<14))vehicles.push(veh);
+  }
+  const w=newVehicle('W','car','S',1,PATHS.W[1].S.sStop-70,11);vehicles.push(w);
+  computeMetrics();
+}
+
+/* ============================ signals ============================ */
+function sig(app){
+  if(ctrl.mode==='flash')return'F';
+  if(ctrl.phase==='AR')return'R';
+  if(app===ctrl.cur)return ctrl.phase;
+  return'R';
+}
+function toAmber(reason){ctrl.phase='A';ctrl.t=0;if(reason)logc(reason)}
+function decide(){
+  const res={};let best=null;
+  for(const a of APPS){
+    const m=MET[a];
+    const dens=(a==='N'&&ctrl.frozenN)?30:m.density;
+    const wait=m.wait;
+    let p=dens+0.45*wait; if(m.count===0)p=0.15*wait;
+    const starving=wait>90; if(starving)p+=1000;
+    const share=clamp(dens/45,0,1);
+    const G=m.count===0?ctrl.Gmin:Math.round(ctrl.Gmin+share*(ctrl.Gmax-ctrl.Gmin));
+    res[a]={p,share,G,dens,wait};
+    if(a===ctrl.cur||a===ctrl.excluded)continue;
+    if(!best||p>res[best].p)best=a;
+  }
+  return{app:best,all:res};
+}
+const LOST=()=>ctrl.amber+ctrl.allred;
+// IRC:93 style cap: one full cycle (all four roads, incl. amber + all-red) must not exceed ctrl.CYCLE seconds
+function scalePlan(d){
+  const G={};let extra=0;for(const a of APPS){G[a]=d.all[a].G;extra+=G[a]-ctrl.Gmin}
+  const room=ctrl.CYCLE-4*LOST()-4*ctrl.Gmin;
+  if(extra>room){const f=room/extra;for(const a of APPS)G[a]=ctrl.Gmin+Math.floor((G[a]-ctrl.Gmin)*f)}
+  return G;
+}
+const cycleTotal=G=>APPS.reduce((s,a)=>s+G[a]+LOST(),0);
+function planCycle(){
+  const d=decide();const G=scalePlan(d);
+  // fixed clockwise sequence (N→E→S→W); only green durations adapt, so every road is served once per cycle
+  const i0=APPS.indexOf(ctrl.cur);const order=[1,2,3,4].map(k=>APPS[(i0+k)%4]);
+  ctrl.plan=G;ctrl.cq=order;ctrl.cycleStart=simT;ctrl.cycleN++;
+  logc('New cycle · '+order.map(a=>a+' '+G[a]).join(' · ')+' · total '+cycleTotal(G)+' s ≤ '+ctrl.CYCLE+' s','g');
+}
+function nextPhase(){
+  ctrl.seq++;ctrl.ext=0;
+  if(ctrl.mode==='adaptive'){
+    if(!ctrl.cq.length)planCycle();
+    const a=ctrl.cq.shift();ctrl.lastDecision=decide();ctrl.cur=a;ctrl.planG=ctrl.plan[a];
+    logc(NAME[a]+' green · '+ctrl.planG+' s planned','g');
+  }else{
+    const i=ctrl.order.indexOf(ctrl.cur);ctrl.cur=ctrl.order[(i+1)%4];ctrl.planG=ctrl.fixedG;
+    logc(NAME[ctrl.cur]+' green · '+ctrl.fixedG+' s '+(ctrl.mode==='fallback'?'fallback plan':'fixed timer'),'g');
+  }
+  ctrl.phase='G';ctrl.t=0;
+}
+function setMode(m){
+  if(ctrl.mode===m)return;
+  const prev=ctrl.mode;ctrl.mode=m;
+  if(m==='flash'){ctrl.token=null;logc('Remote Yellow Mode ON','y');return}
+  if(prev==='flash'){ctrl.cq=[];ctrl.phase='AR';ctrl.t=0;logc('Yellow mode off · all-red, then normal operation','y');return}
+  if(m==='adaptive'){ctrl.cq=[];logc('AI adaptive control engaged','g');if(ctrl.phase==='G'&&ctrl.t>4)toAmber()}
+  if(m==='fallback'){logc('AI unit fault · fixed-time fallback plan','r');ctrl.planG=Math.min(ctrl.planG,ctrl.fixedG)}
+  if(m==='fixed'){ctrl.planG=Math.max(ctrl.t+1,Math.min(ctrl.planG,ctrl.fixedG))}
+}
+function ctrlStep(dt){
+  if(ctrl.mode==='flash'){
+    ctrl.tokenT+=dt;
+    const waiting=APPS.filter(a=>MET[a].head<14);
+    if(!ctrl.token||!waiting.includes(ctrl.token)||(ctrl.tokenT>4.5&&waiting.length>1)){
+      const cands=waiting.filter(a=>a!==ctrl.token);
+      if(cands.length){let i=APPS.indexOf(ctrl.token);for(let k=1;k<=4;k++){const a=APPS[(i+k+4)%4];if(cands.includes(a)){ctrl.token=a;break}}ctrl.tokenT=0}
+    }
+    return;
+  }
+  ctrl.t+=dt;
+  if(ctrl.phase==='G'){
+    if(ctrl.mode==='adaptive'){
+      const m=MET[ctrl.cur];
+      if(ctrl.t>=ctrl.Gmin&&m.near===0){toAmber('Gap-out · '+NAME[ctrl.cur]+' queue cleared at '+ctrl.t.toFixed(0)+' s')}
+      else if(ctrl.t>=ctrl.planG){
+        const proj=(simT-ctrl.cycleStart)+(ctrl.planG+1-ctrl.t)+LOST()+ctrl.cq.reduce((s,b)=>s+ctrl.plan[b]+LOST(),0);
+        if(m.near>0&&ctrl.planG<ctrl.Gmax&&proj<=ctrl.CYCLE){ctrl.planG+=1;ctrl.ext++;if(ctrl.ext%4===1)logc('Extend green +1 s · queue still moving')}
+        else toAmber(ctrl.planG>=ctrl.Gmax?'Max-out · '+NAME[ctrl.cur]+' reached '+ctrl.Gmax+' s':m.near>0?'Cycle cap · '+NAME[ctrl.cur]+' ends to keep cycle ≤ '+ctrl.CYCLE+' s':null);
+      }
+    }else if(ctrl.t>=ctrl.planG)toAmber();
+  }else if(ctrl.phase==='A'){
+    if(ctrl.t>=ctrl.amber){ctrl.phase='AR';ctrl.t=0;ctrl.lastEnd[ctrl.cur]=simT}
+  }else if(ctrl.phase==='AR'){
+    if(ctrl.t>=ctrl.allred)nextPhase();
+  }
+}
+
+/* ============================ metrics ============================ */
+for(const a of APPS)MET[a]={count:0,by:{},area:0,density:0,queue:0,near:0,wait:0,head:99};
+function computeMetrics(){
+  for(const a of APPS){const m=MET[a];m.count=0;m.by={};m.area=0;m.queue=0;m.near=0;m.head=99}
+  for(const v of vehicles){
+    if(v.crossed)continue;
+    const m=MET[v.app],dist=v.path.sStop-(v.s+v.sp.L/2);
+    if(dist<80){m.count++;m.by[v.type]=(m.by[v.type]||0)+1;m.area+=v.sp.area}
+    if(dist<30)m.near++;
+    if(dist<m.head)m.head=dist;
+    if(v.v<1.8&&dist<170)m.queue=Math.max(m.queue,dist+v.sp.L);
+  }
+  for(const a of APPS){const m=MET[a];m.density=clamp(m.area/(2*LW*80)*100,0,100);m.wait=sig(a)==='R'?Math.max(0,simT-ctrl.lastEnd[a]):0;m.backlog=BL[a][0].length+BL[a][1].length}
+}
+
+/* ============================ physics step ============================ */
+const P=[];// cached positions
+function inBox(v){return v.s>v.path.sStop+v.sp.L*0.0&&v.s<v.path.sExit+v.sp.L*0.5}
+function step(dt){
+  simT+=dt;
+  // arrivals
+  for(const a of APPS){
+    while(simT>=nextArr[a]){const it=newArrivalItem(a);BL[a][it.lane].push(it);nextArr[a]+=expRand(DEMAND[a])}
+    for(const lane of [0,1]){
+      const q=BL[a][lane];if(!q.length)continue;const it=q[0];
+      let last=null;for(const v of vehicles)if(v.app===a&&v.lane===lane&&!v.crossed&&(!last||v.s<last.s))last=v;
+      const L=SPECS[it.type].L;
+      if(!last||(last.s-last.sp.L/2)-L/2>SPECS[it.type].s0+2.5){
+        const veh=newVehicle(a,it.type,it.move,lane,L/2,0);veh.v=last?Math.min(veh.v0,last.v+1.5):veh.v0*.92;vehicles.push(veh);q.shift();
+      }
+    }
+  }
+  // positions
+  const n=vehicles.length;P.length=n;
+  const boxApps={};
+  for(let i=0;i<n;i++){const v=vehicles[i];const q=pathAt(v.path,v.s);const c=Math.cos(q[2]),s=Math.sin(q[2]);P[i]={x:q[0]-s*v.lat,y:q[1]+c*v.lat,h:q[2],c,s,box:inBox(v)};v.x=P[i].x;v.y=P[i].y;v.h=q[2];if(P[i].box)boxApps[v.app]=1}
+  // accelerations
+  for(let i=0;i<n;i++){
+    const v=vehicles[i],pi=P[i],sp=v.sp;
+    let gap=1e9,vl=0;
+    for(let j=0;j<n;j++){
+      if(j===i)continue;const pj=P[j];const dx=pj.x-pi.x,dy=pj.y-pi.y;
+      if(dx>48||dx<-48||dy>48||dy<-48)continue;
+      const along=dx*pi.c+dy*pi.s;if(along<=0||along>48)continue;
+      const u=vehicles[j];const lat=-dx*pi.s+dy*pi.c;
+      if(Math.abs(lat)>(sp.W+u.sp.W)/2+0.3)continue;
+      const hd=pi.c*pj.c+pi.s*pj.s;
+      if(hd<0.5&&!(pj.box&&!pi.box))continue;
+      const ext=Math.abs(hd)*u.sp.L/2+(1-Math.abs(hd))*u.sp.W/2;
+      const g=along-sp.L/2-ext;if(g<gap){gap=g;vl=u.v*Math.max(0,hd)}
+    }
+    // desired speed
+    let v0=v.v0; const front=v.s+sp.L/2, dStop=v.path.sStop-front;
+    if(v.move!=='S'&&dStop<28&&v.s<v.path.sExit){const vt=v.move==='L'?5.2:7.4;v0=Math.min(v0,lerp(vt,v0,clamp(dStop/28,0,1)))}
+    if(ctrl.mode==='flash'&&dStop<38&&v.s<v.path.sExit+2)v0=Math.min(v0,dStop>0?lerp(4.5,v0,clamp(dStop/38,0,1)):6.5);
+    // signal
+    let sgap=1e9;
+    if(!v.crossed&&!v.ignore&&dStop>-0.5){
+      const st=sig(v.app);let stop=false;
+      if(st==='G'){v.amber=null}
+      else if(st==='A'){if(v.amber===null)v.amber=dStop>v.v*v.v/(2*3.3)+1.0?'stop':'go';stop=v.amber==='stop'}
+      else if(st==='R'){stop=!(v.amber==='go'&&dStop<4)}
+      else if(st==='F'){stop=dStop<9&&!(ctrl.token===v.app&&!Object.keys(boxApps).some(a=>a!==v.app))}
+      if(stop)sgap=dStop-0.6;
+    }
+    const a=sp.a*(v.violator?1.6:1),b=sp.b;
+    const inter=(g,vlead)=>{const dv=v.v-vlead;const ss=sp.s0+Math.max(0,v.v*sp.T+v.v*dv/(2*Math.sqrt(a*b)));return-a*(ss/Math.max(g,0.05))**2};
+    let acc=a*(1-Math.pow(Math.max(v.v,0)/v0,4));
+    let ia=0;if(gap<200)ia=Math.min(ia,inter(gap,vl));if(sgap<200)ia=Math.min(ia,inter(Math.max(sgap,0.05),0));
+    acc+=ia;v.acc=clamp(acc,-9,a);
+  }
+  // integrate
+  for(let i=0;i<n;i++){
+    const v=vehicles[i];const before=v.s+v.sp.L/2;
+    v.v=Math.max(0,v.v+v.acc*dt);if(v.v<0.02&&v.acc<0)v.v=0;
+    v.s+=v.v*dt;v.brake=v.acc<-0.7||v.v<0.25;
+    const front=v.s+v.sp.L/2;
+    if(!v.crossed&&front>=v.path.sStop&&before<v.path.sStop){
+      v.crossed=true;STATS.crossed[v.app]++;STATS.byType[v.type]=(STATS.byType[v.type]||0)+1;
+      if(sig(v.app)==='R'&&v.violator)onViolation(v);
+    }
+    v.trailT+=dt;if(v.trailT>0.2){v.trailT=0;v.trail.push([v.x,v.y]);if(v.trail.length>14)v.trail.shift()}
+  }
+  vehicles=vehicles.filter(v=>v.s<v.path.len-2);
+  // wasted green
+  if(ctrl.mode!=='flash'&&ctrl.phase==='G'&&MET[ctrl.cur].head>40){const k=ctrl.mode==='adaptive'?'adaptive':'fixed';STATS.waste[k]+=dt;STATS.wasteCycle+=dt}
+  if(ctrl.phase!=='G')STATS.wasteCycle=0;
+  if(!ctrl.link)ctrl.buffered+=dt*2.3;
+}
+let metT=0;
+function simulate(dt){
+  let rem=dt;while(rem>1e-6){const h=Math.min(rem,1/50);step(h);ctrlStep(h);metT+=h;if(metT>0.2){metT=0;computeMetrics()}rem-=h}
+}
+
+/* ============================ walkers & ambient ============================ */
+const walkers=[];
+(function(){const R=mulberry32(11);const segs=[[9.6,-88,9.6,-17],[-9.6,-88,-9.6,-17],[9.6,17,9.6,88],[-9.6,17,-9.6,88],[-130,9.6,-17,9.6],[-130,-9.6,-17,-9.6],[17,9.6,130,9.6],[17,-9.6,130,-9.6]];
+  for(let i=0;i<20;i++){const s=segs[i%segs.length];walkers.push({s,u:R(),sp:(1.1+R()*0.5)/Math.hypot(s[2]-s[0],s[3]-s[1])*(R()<.5?1:-1),c:SHIRTS[(R()*SHIRTS.length)|0],off:(R()-.5)*1.6,ph:R()*6})}})();
+function walkStep(dt){for(const w of walkers){w.u+=w.sp*dt;if(w.u>1){w.u=1;w.sp*=-1}if(w.u<0){w.u=0;w.sp*=-1}}}
+const clouds=[{x:-140,y:-40,r:70,v:2.2},{x:10,y:60,r:90,v:1.6},{x:120,y:-70,r:60,v:2.6}];
+
+/* ============================ background ============================ */
+const BG={x0:-140,y0:-96,w:280,h:192,ppm:9};
+const BUILDINGS=[],TREES=[];
+const POLES={};
+for(const a of APPS){const d=DIR[a],l=LEFT(d);POLES[a]={pole:pt(-(STOP+1.1),8.7,d),head:pt(-(STOP+1.1),4.2,d),cam:pt(-(STOP+1.1),2.6,d),anpr:pt(-(STOP+1.1),1.5,d),badge:pt(-(STOP+3.2),11.2,d),d,l}}
+const CABINET={x:11.2,y:-17.5,w:1.4,h:0.8};
+function buildBackground(){
+  const c=document.createElement('canvas');c.width=BG.w*BG.ppm;c.height=BG.h*BG.ppm;
+  const g=c.getContext('2d');g.scale(BG.ppm,BG.ppm);g.translate(-BG.x0,-BG.y0);
+  const R=mulberry32(7);
+  // asphalt everywhere first
+  g.fillStyle='#45484b';g.fillRect(BG.x0,BG.y0,BG.w,BG.h);
+  for(let i=0;i<60000;i++){const x=BG.x0+R()*BG.w,y=BG.y0+R()*BG.h,s=0.08+R()*0.25;g.fillStyle=R()<.5?'rgba(255,255,255,.05)':'rgba(0,0,0,.08)';g.fillRect(x,y,s,s)}
+  // wheel-path wear and oil drips in each lane
+  for(const a of APPS){const d=DIR[a];
+    for(const sgn of[1,-1])for(const off of LANE_OFF){
+      const dd=sgn>0?d:[-d[0],-d[1]];
+      for(const w of[-0.8,0.8]){const p0=pt(-140,off+w,dd),p1=pt(-STOP,off+w,dd);g.strokeStyle='rgba(20,20,22,.16)';g.lineWidth=0.55;g.beginPath();g.moveTo(p0[0],p0[1]);g.lineTo(p1[0],p1[1]);g.stroke()}
+      if(sgn>0)for(let k=0;k<7;k++){const p=pt(-(STOP+2+k*5.5+R()*2),off+(R()-.5)*.5,d);g.fillStyle='rgba(15,15,18,.18)';g.beginPath();g.ellipse(p[0],p[1],0.5+R()*0.5,0.4+R()*.3,R()*3,0,7);g.fill()}
+    }}
+  // patches
+  for(let i=0;i<10;i++){const a=APPS[i%4],d=DIR[a];const p=pt(-(25+R()*90),(R()-.5)*12,d);g.fillStyle='rgba(30,32,34,.35)';g.save();g.translate(p[0],p[1]);g.rotate(Math.atan2(d[1],d[0]));g.fillRect(-2-R()*3,-1-R(),4+R()*6,2+R()*2);g.restore()}
+  // quadrant blocks (footpath + plots)
+  for(const sx of[1,-1])for(const sy of[1,-1]){
+    const P=(x,y)=>[sx*x,sy*y];
+    const fp=()=>{g.beginPath();let p=P(HALF+4,HALF);g.moveTo(...p);p=P(150,HALF);g.lineTo(...p);p=P(150,110);g.lineTo(...p);p=P(HALF,110);g.lineTo(...p);p=P(HALF,HALF+4);g.lineTo(...p);const cpt=P(HALF,HALF),e=P(HALF+4,HALF);g.quadraticCurveTo(cpt[0],cpt[1],e[0],e[1]);g.closePath()};
+    fp();g.fillStyle='#8f8b84';g.fill();
+    // paver joints
+    g.save();fp();g.clip();g.strokeStyle='rgba(60,55,50,.18)';g.lineWidth=0.04;
+    for(let k=HALF;k<150;k+=0.6){g.beginPath();g.moveTo(...P(k,HALF));g.lineTo(...P(k,HALF+4));g.stroke();g.beginPath();g.moveTo(...P(HALF,k));g.lineTo(...P(HALF+4,k));g.stroke()}
+    for(let i=0;i<2500;i++){const x=HALF+R()*140,y=HALF+R()*4;g.fillStyle='rgba(0,0,0,.06)';g.fillRect(...P(x,y),.2,.2);g.fillRect(...P(y,x),.2,.2)}
+    g.restore();
+    // kerb black-yellow
+    const kerb=()=>{g.beginPath();g.moveTo(...P(150,HALF));g.lineTo(...P(HALF+4,HALF));const cpt=P(HALF,HALF),e=P(HALF,HALF+4);g.quadraticCurveTo(cpt[0],cpt[1],e[0],e[1]);g.lineTo(...P(HALF,110))};
+    kerb();g.lineWidth=0.38;g.strokeStyle='#e2c044';g.stroke();g.setLineDash([1,1]);g.strokeStyle='#1b1b1b';kerb();g.stroke();g.setLineDash([]);
+    // plot
+    const x0=HALF+4,y0=HALF+4;
+    g.fillStyle='#a8a291';g.fillRect(...(()=>{const a=P(x0,y0),b=P(150,110);return[Math.min(a[0],b[0]),Math.min(a[1],b[1]),Math.abs(b[0]-a[0]),Math.abs(b[1]-a[1])]})());
+    g.strokeStyle='rgba(70,60,50,.5)';g.lineWidth=0.25;g.beginPath();g.moveTo(...P(150,y0));g.lineTo(...P(x0,y0));g.lineTo(...P(x0,110));g.stroke();
+    const park=(sx<0&&sy>0);
+    if(park){
+      const a=P(x0+.3,y0+.3),b=P(x0+46,y0+40);g.fillStyle='#6f8a4c';g.fillRect(Math.min(a[0],b[0]),Math.min(a[1],b[1]),Math.abs(b[0]-a[0]),Math.abs(b[1]-a[1]));
+      for(let i=0;i<900;i++){const x=x0+R()*46,y=y0+R()*40;g.fillStyle=R()<.5?'rgba(255,255,200,.06)':'rgba(0,40,0,.09)';const q=P(x,y);g.fillRect(q[0],q[1],.4,.4)}
+      g.strokeStyle='#b9ad95';g.lineWidth=1.4;g.beginPath();g.moveTo(...P(x0,y0+22));g.quadraticCurveTo(...P(x0+20,y0+10),...P(x0+46,y0+18));g.stroke();
+      for(let i=0;i<14;i++){const q=P(x0+3+R()*41,y0+3+R()*35);TREES.push({x:q[0],y:q[1],r:2.2+R()*1.6})}
+    }
+    // buildings in rows
+    for(let bx=x0+1.2;bx<146;){
+      const bw=8+R()*9;
+      for(let by=y0+1.2;by<106;){
+        const bd=10+R()*9;
+        if(!(park&&bx<x0+47&&by<y0+41)&&R()<.93){
+          const ins=0.4+R()*0.6;const a=P(bx+ins,by+ins),b=P(bx+bw-ins,by+bd-ins);
+          const B={x0:Math.min(a[0],b[0]),y0:Math.min(a[1],b[1]),x1:Math.max(a[0],b[0]),y1:Math.max(a[1],b[1]),h:6+R()*13,
+            col:['#cfc8b8','#d8d2c4','#bdb6a6','#c9c1ae','#e0dacb','#b3ab9a','#d4c7b0','#c8bfb4'][R()*8|0],
+            fac:['#d9c9a8','#e6dcc6','#cbb79a','#e2b9a0','#c9d3d6','#efe8d8','#d8c08f','#bfc7b0'][R()*8|0],det:R()};
+          BUILDINGS.push(B);
+        }
+        by+=bd+0.8+R()*1.6;
+      }
+      bx+=bw+0.8+R()*2.2;
+    }
+  }
+  // building shadows then roofs
+  for(const B of BUILDINGS){const o=B.h*0.32;g.fillStyle='rgba(0,0,0,.28)';poly(g,[[B.x0,B.y0],[B.x1,B.y0],[B.x1+o,B.y0+o*1.2],[B.x1+o,B.y1+o*1.2],[B.x0+o,B.y1+o*1.2],[B.x0,B.y1]]);g.fill()}
+  for(const B of BUILDINGS){
+    const w=B.x1-B.x0,h=B.y1-B.y0;g.fillStyle=B.col;g.fillRect(B.x0,B.y0,w,h);
+    g.strokeStyle='rgba(80,70,60,.55)';g.lineWidth=0.35;g.strokeRect(B.x0+.18,B.y0+.18,w-.36,h-.36);
+    g.fillStyle='rgba(0,0,0,.05)';for(let i=0;i<14;i++)g.fillRect(B.x0+R()*w,B.y0+R()*h,.6+R(),.6+R());
+    // stair room
+    const sw=2.4,sh=3;const sx0=B.x0+1+R()*(w-sw-2),sy0=B.y0+1+R()*(h-sh-2);
+    g.fillStyle='rgba(0,0,0,.25)';g.fillRect(sx0+.6,sy0+.7,sw,sh);g.fillStyle=shade(B.col.length?B.col:'#ccc',1.08);g.fillRect(sx0,sy0,sw,sh);g.strokeStyle='rgba(80,70,60,.4)';g.lineWidth=.12;g.strokeRect(sx0,sy0,sw,sh);
+    // water tanks (black, ribbed)
+    const nt=1+(R()*2|0);for(let k=0;k<nt;k++){const tx=B.x0+1.2+R()*(w-2.4),ty=B.y0+1.2+R()*(h-2.4),tr=0.55+R()*0.25;
+      g.fillStyle='rgba(0,0,0,.3)';g.beginPath();g.arc(tx+.35,ty+.45,tr,0,7);g.fill();g.fillStyle='#1c1d1f';g.beginPath();g.arc(tx,ty,tr,0,7);g.fill();g.strokeStyle='rgba(255,255,255,.12)';g.lineWidth=.06;for(let q=.2;q<tr;q+=.18){g.beginPath();g.arc(tx,ty,q,0,7);g.stroke()}
+      g.fillStyle='rgba(255,255,255,.18)';g.beginPath();g.arc(tx-tr*.3,ty-tr*.3,tr*.25,0,7);g.fill()}
+    if(B.det<.22){g.fillStyle='#3b4f69';const px=B.x0+1+R()*(w*.3),py=B.y0+1+R()*(h*.3);for(let k=0;k<3;k++){g.fillRect(px+k*1.25,py,1.1,2.2);g.strokeStyle='rgba(200,220,255,.3)';g.lineWidth=.05;g.strokeRect(px+k*1.25,py,1.1,2.2)}}
+    else if(B.det<.32){g.fillStyle='#2d6fb3';g.fillRect(B.x0+w*.5,B.y0+h*.55,w*.35,h*.3)}
+    for(let k=0;k<2;k++){g.fillStyle='#9a9a96';g.fillRect(B.x0+.4+R()*(w-1.6),B.y0+.4+R()*(h-1.2),1.0,.7)}
+  }
+  // street trees
+  for(const a of APPS){const d=DIR[a];for(const side of[1,-1]){for(let k=24;k<135;k+=9+R()*5){const p=pt(-k,side*10.7,d);TREES.push({x:p[0],y:p[1],r:2.3+R()*0.8})}}}
+  for(const T of TREES){g.fillStyle='rgba(0,0,0,.25)';g.beginPath();g.arc(T.x+1.1,T.y+1.5,T.r*.95,0,7);g.fill()}
+  for(const T of TREES){
+    const cols=['#3f6a30','#4d7a3a','#5a8a44'];
+    for(let k=0;k<5;k++){const ox=(R()-.5)*T.r*.8,oy=(R()-.5)*T.r*.8,rr2=T.r*(0.55+R()*0.35);const gr=g.createRadialGradient(T.x+ox-rr2*.3,T.y+oy-rr2*.3,rr2*.1,T.x+ox,T.y+oy,rr2);gr.addColorStop(0,'#7aa85a');gr.addColorStop(.6,cols[k%3]);gr.addColorStop(1,'#2f5226');g.fillStyle=gr;g.beginPath();g.arc(T.x+ox,T.y+oy,rr2,0,7);g.fill()}
+  }
+  // road markings
+  g.globalAlpha=.88;
+  for(const a of APPS){
+    const d=DIR[a];
+    // median
+    const m0=pt(-150,-0.5,d),m1=pt(-(STOP+1.2),0.5,d);
+    g.fillStyle='#d9c043';g.fillRect(Math.min(m0[0],m1[0]),Math.min(m0[1],m1[1]),Math.abs(m1[0]-m0[0]),Math.abs(m1[1]-m0[1]));
+    for(let k=STOP+1.2;k<150;k+=2){const p0=pt(-k,-0.5,d),p1=pt(-k-1,0.5,d);g.fillStyle='#1d1d1d';g.fillRect(Math.min(p0[0],p1[0]),Math.min(p0[1],p1[1]),Math.abs(p1[0]-p0[0]),Math.abs(p1[1]-p0[1]))}
+    const i0=pt(-150,-0.3,d),i1=pt(-(STOP+1.5),0.3,d);g.fillStyle='#5f7843';g.fillRect(Math.min(i0[0],i1[0]),Math.min(i0[1],i1[1]),Math.abs(i1[0]-i0[0]),Math.abs(i1[1]-i0[1]));
+    for(let k=STOP+3;k<150;k+=1.6){const p=pt(-k,0,d);g.fillStyle=R()<.5?'#4f6b38':'#6c8a4a';g.beginPath();g.arc(p[0],p[1],0.28+R()*.12,0,7);g.fill()}
+    // lane dividers: inbound (solid near stop line), outbound side dashed
+    g.fillStyle='#ececec';
+    for(const side of[1,-1]){
+      for(let k=STOP+0.2;k<150;){const solid=side>0&&k<STOP+16;const len=solid?(STOP+16-k):3;const p0=pt(-k,side*(MEDH+LW),d),p1=pt(-(k+len),side*(MEDH+LW),d);const w=0.15;
+        g.fillRect(Math.min(p0[0],p1[0])-(d[0]===0?w/2:0),Math.min(p0[1],p1[1])-(d[1]===0?w/2:0),Math.abs(p1[0]-p0[0])+(d[0]===0?w:0),Math.abs(p1[1]-p0[1])+(d[1]===0?w:0));k+=solid?len:7.5}
+    }
+    // stop line
+    {const p0=pt(-STOP,0.5,d),p1=pt(-(STOP+0.45),HALF,d);g.fillRect(Math.min(p0[0],p1[0]),Math.min(p0[1],p1[1]),Math.abs(p1[0]-p0[0]),Math.abs(p1[1]-p0[1]))}
+    // zebra
+    for(let lat=-HALF+0.3;lat<HALF-0.2;lat+=1.0){const p0=pt(-8.4,lat,d),p1=pt(-11.8,lat+0.5,d);g.fillRect(Math.min(p0[0],p1[0]),Math.min(p0[1],p1[1]),Math.abs(p1[0]-p0[0]),Math.abs(p1[1]-p0[1]))}
+    // lane arrows
+    for(const lane of[0,1]){const base=pt(-(STOP+20),LANE_OFF[lane],d);drawArrow(g,base,d,lane)}
+  }
+  g.globalAlpha=1;
+  // worn paint speckle
+  for(let i=0;i<9000;i++){const x=(R()-.5)*60,y=(R()-.5)*60;g.fillStyle='rgba(69,72,75,.45)';g.fillRect(x,y,.15,.15)}
+  return c;
+}
+function drawArrow(g,base,d,lane){
+  g.save();g.translate(base[0],base[1]);g.rotate(Math.atan2(d[1],d[0]));g.fillStyle='#ececec';
+  // straight stem + head (pointing +x)
+  g.fillRect(-3,-0.12,4.2,0.24);poly(g,[[1.2,-0.45],[2.2,0],[1.2,0.45]]);g.fill();
+  const side=lane===1?-1:1; // lane1 (kerb) left turn => left = -y ; lane0 right => +y
+  g.beginPath();g.moveTo(-0.8,0);g.quadraticCurveTo(0.4,0,0.4,side*0.9);g.lineWidth=0.24;g.strokeStyle='#ececec';g.stroke();
+  poly(g,[[0.0,side*0.85],[0.4,side*1.6],[0.8,side*0.85]]);g.fill();
+  g.restore();
+}
+
+/* ============================ main view ============================ */
+const cv=$('world'),ctx=cv.getContext('2d'),stage=$('stage'),ov=$('ov');
+let CW=1280,CH=720,DPR=1;
+function resize(){const r=stage.getBoundingClientRect();DPR=Math.min(2,window.devicePixelRatio||1);CW=Math.max(320,r.width);CH=Math.max(180,r.height);cv.width=Math.round(CW*DPR);cv.height=Math.round(CH*DPR)}
+new ResizeObserver(resize).observe(stage);resize();
+const view={x:0,y:-4,w:130},target={x:0,y:-4,w:130};
+let SC=1;
+const W2S=(x,y)=>[(x-view.x)*SC+CW/2,(y-view.y)*SC+CH/2];
+let bgCanvas=null;
+
+function drawVehicle(g,v,t){
+  const L=v.sp.L,W=v.sp.W,ty=v.type;
+  // shadow
+  g.save();g.translate(v.x+0.32*v.sp.H*0.5,v.y+0.42*v.sp.H*0.5);g.rotate(v.h);g.fillStyle='rgba(0,0,0,.2)';rr(g,-L/2-.15,-W/2-.15,L+.3,W+.3,W*.35);g.fill();g.fillStyle='rgba(0,0,0,.22)';rr(g,-L/2+.05,-W/2+.05,L-.1,W-.1,W*.3);g.fill();g.restore();
+  g.save();g.translate(v.x,v.y);g.rotate(v.h);
+  const br=v.brake,blink=(t*2.4%1)<.5,turnOn=v.move!=='S'&&v.s>v.path.sStop-35&&v.s<v.path.sExit+2&&blink;
+  const side=v.move==='L'?-1:1;
+  if(ty==='bike'){
+    g.fillStyle='#151515';rr(g,-L/2,-0.15,L,0.3,0.14);g.fill();
+    g.fillStyle=v.body;rr(g,-0.55,-0.22,1.2,0.44,0.18);g.fill();
+    g.strokeStyle='#3a3a3a';g.lineWidth=0.08;g.beginPath();g.moveTo(0.62,-0.38);g.lineTo(0.62,0.38);g.stroke();
+    if(v.pillion){g.fillStyle=v.pillion;g.beginPath();g.ellipse(-0.5,0,0.24,0.32,0,0,7);g.fill();g.fillStyle='#2a2522';g.beginPath();g.arc(-0.45,0,0.13,0,7);g.fill()}
+    g.fillStyle=v.shirt;g.beginPath();g.ellipse(-0.02,0,0.26,0.36,0,0,7);g.fill();
+    g.fillStyle=v.helmet;g.beginPath();g.arc(0.12,0,0.17,0,7);g.fill();g.fillStyle='rgba(255,255,255,.35)';g.beginPath();g.arc(0.07,-0.06,0.06,0,7);g.fill();
+    g.fillStyle=br?'#ff3030':'#7a1a1a';g.fillRect(-L/2,-0.08,0.12,0.16);
+    if(br){g.fillStyle='rgba(255,40,40,.25)';g.beginPath();g.arc(-L/2-.1,0,.35,0,7);g.fill()}
+    if(turnOn){g.fillStyle='#ffb000';g.beginPath();g.arc(L/2-.1,side*.25,.09,0,7);g.arc(-L/2+.1,side*.25,.09,0,7);g.fill()}
+    g.restore();return;
+  }
+  if(ty==='auto'){
+    g.fillStyle=v.body;poly(g,[[-L/2,-W/2],[L*0.18,-W/2],[L/2,-W*0.2],[L/2,W*0.2],[L*0.18,W/2],[-L/2,W/2]]);g.fill();
+    const gr=g.createLinearGradient(0,-W/2,0,W/2);gr.addColorStop(0,'#c9a514');gr.addColorStop(.5,'#f2d43a');gr.addColorStop(1,'#b8960f');
+    g.fillStyle=gr;rr(g,-L/2+.05,-W/2+.06,L*0.66,W-.12,0.3);g.fill();
+    g.fillStyle='#1d2530';g.fillRect(L*0.16,-W*0.33,0.16,W*0.66);
+    g.fillStyle=br?'#ff3030':'#7a1a1a';g.fillRect(-L/2,-W/2+.08,.1,.22);g.fillRect(-L/2,W/2-.3,.1,.22);
+    if(turnOn){g.fillStyle='#ffb000';g.beginPath();g.arc(L/2-.25,side*W*.22,.1,0,7);g.arc(-L/2+.1,side*(W/2-.15),.1,0,7);g.fill()}
+    g.restore();return;
+  }
+  if(ty==='bus'){
+    g.fillStyle=v.body;rr(g,-L/2,-W/2,L,W,0.35);g.fill();
+    g.fillStyle='#d8d5cf';rr(g,-L/2+.25,-W/2+.22,L-.5,W-.44,.3);g.fill();
+    g.fillStyle='#bdbab3';rr(g,-L*0.15,-W*0.3,L*0.3,W*0.6,.2);g.fill();g.strokeStyle='rgba(0,0,0,.2)';g.lineWidth=.05;for(let k=-1;k<=1;k++){g.beginPath();g.moveTo(-L*.15+.2,k*.25);g.lineTo(L*.15-.2,k*.25);g.stroke()}
+    g.fillStyle='#9f9c95';g.fillRect(L*0.28,-0.4,0.8,0.8);g.fillRect(-L*0.38,-0.4,0.8,0.8);
+    g.fillStyle='#1d2530';g.fillRect(L/2-.3,-W/2+.15,.3,W-.3);g.fillRect(-L/2,-W/2+.3,.15,W-.6);
+    g.fillStyle=br?'#ff3030':'#7a1a1a';g.fillRect(-L/2,-W/2+.05,.12,.35);g.fillRect(-L/2,W/2-.4,.12,.35);
+    if(br){g.fillStyle='rgba(255,40,40,.22)';g.beginPath();g.arc(-L/2,-W/2+.2,.6,0,7);g.arc(-L/2,W/2-.2,.6,0,7);g.fill()}
+    if(turnOn){g.fillStyle='#ffb000';g.beginPath();g.arc(L/2-.15,side*(W/2-.15),.14,0,7);g.arc(-L/2+.15,side*(W/2-.15),.14,0,7);g.fill()}
+    g.restore();return;
+  }
+  if(ty==='truck'){
+    g.fillStyle='#222';g.fillRect(-L/2+.2,-W/2+.15,L-.4,W-.3);
+    const cl=2.3;g.fillStyle=v.body;rr(g,L/2-cl,-W/2,cl,W,.3);g.fill();
+    g.fillStyle='rgba(255,255,255,.18)';g.fillRect(L/2-cl+.2,-W/2+.2,cl-.8,W-.4);
+    g.fillStyle='#1d2530';g.fillRect(L/2-.38,-W/2+.15,.3,W-.3);
+    g.fillStyle=v.tarp;rr(g,-L/2,-W/2+.02,L-cl-.15,W-.04,.18);g.fill();
+    g.strokeStyle='rgba(255,255,255,.28)';g.lineWidth=.05;const cx0=-L/2,cw=L-cl-.15;for(let k=0;k<4;k++){const x=cx0+cw*k/4;g.beginPath();g.moveTo(x,-W/2);g.lineTo(x+cw/4,W/2);g.moveTo(x,W/2);g.lineTo(x+cw/4,-W/2);g.stroke()}
+    g.fillStyle='rgba(0,0,0,.18)';g.fillRect(cx0,W/2-.35,cw,.33);
+    g.fillStyle=br?'#ff3030':'#7a1a1a';g.fillRect(-L/2,-W/2,.12,.3);g.fillRect(-L/2,W/2-.3,.12,.3);
+    if(br){g.fillStyle='rgba(255,40,40,.22)';g.beginPath();g.arc(-L/2,-W/2+.15,.55,0,7);g.arc(-L/2,W/2-.15,.55,0,7);g.fill()}
+    if(turnOn){g.fillStyle='#ffb000';g.beginPath();g.arc(L/2-.12,side*(W/2-.12),.13,0,7);g.arc(-L/2+.12,side*(W/2-.12),.13,0,7);g.fill()}
+    g.restore();return;
+  }
+  if(ty==='lcv'){
+    const cl=1.7;g.fillStyle=v.body;rr(g,L/2-cl,-W/2,cl,W,.28);g.fill();
+    g.fillStyle='#1d2530';g.fillRect(L/2-.62,-W/2+.13,.3,W-.26);
+    g.fillStyle='#6f6d68';rr(g,-L/2,-W/2,L-cl-.1,W,.12);g.fill();g.fillStyle='#585652';g.fillRect(-L/2+.15,-W/2+.15,L-cl-.4,W-.3);
+    if(v.load){g.fillStyle='#a4794b';g.fillRect(-L/2+.3,-W/2+.25,1.1,.7);g.fillRect(-L/2+.3,.0,1.1,.6);g.fillStyle='#8e6a43';g.fillRect(-L/2+1.5,-W/2+.3,.9,1.2)}
+    g.fillStyle=br?'#ff3030':'#7a1a1a';g.fillRect(-L/2,-W/2+.05,.1,.25);g.fillRect(-L/2,W/2-.3,.1,.25);
+    if(turnOn){g.fillStyle='#ffb000';g.beginPath();g.arc(L/2-.12,side*(W/2-.12),.12,0,7);g.arc(-L/2+.1,side*(W/2-.12),.12,0,7);g.fill()}
+    g.restore();return;
+  }
+  // car / suv
+  const suv=ty==='suv';
+  g.fillStyle=v.body;rr(g,-L/2,-W/2,L,W,W*(suv?.2:.32));g.fill();
+  const gr=g.createLinearGradient(0,-W/2,0,W/2);gr.addColorStop(0,'rgba(0,0,0,.32)');gr.addColorStop(.22,'rgba(255,255,255,.08)');gr.addColorStop(.5,'rgba(255,255,255,.2)');gr.addColorStop(.78,'rgba(255,255,255,.04)');gr.addColorStop(1,'rgba(0,0,0,.34)');
+  g.fillStyle=gr;rr(g,-L/2,-W/2,L,W,W*(suv?.2:.32));g.fill();
+  const wf=suv?0.2:0.12, wr=suv?0.27:0.24;
+  g.fillStyle='#1b2430';poly(g,[[L*0.29,-W*0.41],[L*0.29,W*0.41],[L*wf,W*0.37],[L*wf,-W*0.37]]);g.fill();
+  g.fillStyle='rgba(160,190,220,.18)';poly(g,[[L*0.27,-W*0.3],[L*0.27,-W*0.05],[L*(wf+.03),-W*0.14],[L*(wf+.03),-W*0.33]]);g.fill();
+  g.fillStyle=shade(v.body,1.06);rr(g,-L*wr,-W*0.37,L*(wr+wf),W*0.74,W*.12);g.fill();
+  if(suv){g.strokeStyle='rgba(20,20,20,.6)';g.lineWidth=.07;g.beginPath();g.moveTo(-L*wr+.1,-W*.3);g.lineTo(L*wf-.1,-W*.3);g.moveTo(-L*wr+.1,W*.3);g.lineTo(L*wf-.1,W*.3);g.stroke()}
+  g.fillStyle='#1b2430';poly(g,[[-L*wr,-W*0.37],[-L*wr,W*0.37],[-L*(wr+.1),W*0.32],[-L*(wr+.1),-W*0.32]]);g.fill();
+  g.fillStyle='rgba(20,28,38,.85)';g.fillRect(-L*(wr-.02),-W*0.44,L*(wr+wf-.04),W*0.07);g.fillRect(-L*(wr-.02),W*0.37,L*(wr+wf-.04),W*0.07);
+  g.fillStyle=v.body;g.fillRect(L*(wf+.05),-W*0.6,L*0.05,W*0.12);g.fillRect(L*(wf+.05),W*0.48,L*0.05,W*0.12);
+  g.fillStyle='rgba(255,248,215,.95)';g.fillRect(L/2-.18,-W/2+.12,.14,.32);g.fillRect(L/2-.18,W/2-.44,.14,.32);
+  g.fillStyle=br?'#ff2a2a':'#8a1c1c';g.fillRect(-L/2+.02,-W/2+.1,.12,.36);g.fillRect(-L/2+.02,W/2-.46,.12,.36);
+  if(br){g.fillStyle='rgba(255,40,40,.24)';g.beginPath();g.arc(-L/2,-W/2+.28,.55,0,7);g.arc(-L/2,W/2-.28,.55,0,7);g.fill()}
+  if(turnOn){g.fillStyle='#ffb000';g.beginPath();g.arc(L/2-.12,side*(W/2-.1),.12,0,7);g.arc(-L/2+.1,side*(W/2-.1),.12,0,7);g.fill();g.fillStyle='rgba(255,176,0,.3)';g.beginPath();g.arc(L/2-.12,side*(W/2-.1),.4,0,7);g.arc(-L/2+.1,side*(W/2-.1),.4,0,7);g.fill()}
+  g.restore();
+}
+function drawWalker(g,w,t){
+  const s=w.s,u=w.u,x=lerp(s[0],s[2],u),y=lerp(s[1],s[3],u),ang=Math.atan2(s[3]-s[1],s[2]-s[0])+(w.sp<0?Math.PI:0);
+  const vert=s[0]===s[2];const ox=vert?w.off:0,oy=vert?0:w.off;
+  g.save();g.translate(x+ox,y+oy);g.rotate(ang);g.fillStyle='rgba(0,0,0,.22)';g.beginPath();g.ellipse(.2,.25,.32,.22,0,0,7);g.fill();
+  const sw=Math.sin(t*6+w.ph)*.12;g.fillStyle='#2b2b2b';g.fillRect(sw-.08,-.16,.18,.1);g.fillRect(-sw-.08,.06,.18,.1);
+  g.fillStyle=w.c;g.beginPath();g.ellipse(0,0,.17,.27,0,0,7);g.fill();g.fillStyle='#2a201b';g.beginPath();g.arc(0,0,.12,0,7);g.fill();g.restore();
+}
+function drawSignals(g,t){
+  for(const a of APPS){
+    const P=POLES[a],st=sig(a),d=P.d;
+    // arm shadow + arm
+    g.strokeStyle='rgba(0,0,0,.25)';g.lineWidth=.35;g.beginPath();g.moveTo(P.pole[0]+1.4,P.pole[1]+1.9);g.lineTo(P.anpr[0]+1.4,P.anpr[1]+1.9);g.stroke();
+    g.strokeStyle='#7d8288';g.lineWidth=.28;g.beginPath();g.moveTo(P.pole[0],P.pole[1]);g.lineTo(P.anpr[0],P.anpr[1]);g.stroke();
+    g.fillStyle='#5d6268';g.beginPath();g.arc(P.pole[0],P.pole[1],.32,0,7);g.fill();
+    // head on arm
+    g.save();g.translate(P.head[0],P.head[1]);g.rotate(Math.atan2(d[1],d[0]));
+    g.fillStyle='#16181b';rr(g,-.35,-.45,.7,.9,.12);g.fill();
+    const col=st==='G'?'#2fd27a':st==='A'?'#ffb21f':st==='F'?((t%1)<.5?'#ffb21f':null):'#ff3b3b';
+    if(col){g.fillStyle=col;g.beginPath();g.arc(0,0,.26,0,7);g.fill()}
+    g.restore();
+    // cameras on arm
+    for(const [k,cpos] of [['cam',P.cam],['anpr',P.anpr]]){g.save();g.translate(cpos[0],cpos[1]);g.rotate(Math.atan2(-d[1],-d[0]));g.fillStyle=k==='cam'?'#e9ecef':'#cfd4da';rr(g,-.3,-.18,.62,.36,.08);g.fill();g.fillStyle='#111';g.fillRect(.3,-.11,.12,.22);g.restore()}
+  }
+  // cabinet
+  g.fillStyle='rgba(0,0,0,.3)';g.fillRect(CABINET.x+.3,CABINET.y+.4,CABINET.w,CABINET.h);
+  g.fillStyle='#b9bec4';g.fillRect(CABINET.x,CABINET.y,CABINET.w,CABINET.h);g.strokeStyle='#6c7178';g.lineWidth=.08;g.strokeRect(CABINET.x,CABINET.y,CABINET.w,CABINET.h);
+  g.fillStyle=FX.cabinet?'#4cc9f0':'#2fd27a';g.beginPath();g.arc(CABINET.x+CABINET.w-.25,CABINET.y+.22,.09,0,7);g.fill();
+}
+function drawBadges(t){
+  // upright signal heads with countdown, drawn in screen space for legibility
+  const u=CW/1280;
+  for(const a of APPS){
+    const P=POLES[a];const [sx,sy]=W2S(P.badge[0],P.badge[1]);
+    const w=16*u*Math.max(.85,Math.min(1.5,SC/8.5)),h=w*2.6;
+    if(sx<-40||sy<-60||sx>CW+40||sy>CH+60)continue;
+    ctx.fillStyle='rgba(0,0,0,.35)';rr(ctx,sx-w/2+2,sy-h/2+3,w,h,w*.25);ctx.fill();
+    ctx.fillStyle='#111316';rr(ctx,sx-w/2,sy-h/2,w,h,w*.25);ctx.fill();ctx.strokeStyle='#3b4047';ctx.lineWidth=1;ctx.stroke();
+    const st=sig(a);const lamps=[['R','#ff3b3b'],['A','#ffb21f'],['G','#2fd27a']];
+    lamps.forEach(([k,c],i)=>{const ly=sy-h/2+w*.5+i*w*.8;let on=st===k||(st==='F'&&k==='A'&&(t%1)<.5);
+      ctx.beginPath();ctx.arc(sx,ly,w*.3,0,7);ctx.fillStyle=on?c:'#2a2d31';if(on){ctx.shadowColor=c;ctx.shadowBlur=14*u}ctx.fill();ctx.shadowBlur=0});
+    // countdown
+    let txt='';let tc='#ff5050';
+    if(ctrl.mode!=='flash'){if(st==='G'){txt=String(Math.max(0,Math.ceil(ctrl.planG-ctrl.t))).padStart(2,'0');tc='#38e08a'}else if(st==='A'){txt=String(Math.max(0,Math.ceil(ctrl.amber-ctrl.t))).padStart(2,'0');tc='#ffc23a'}}
+    const bx=sx+w*.6,by=sy-h*.18;ctx.fillStyle='#0c0d0f';rr(ctx,bx,by,w*1.25,w*.95,3*u);ctx.fill();ctx.strokeStyle='#33383f';ctx.stroke();
+    ctx.font=`600 ${Math.round(w*.62)}px 'JetBrains Mono',monospace`;ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillStyle=txt?tc:'#2a2d31';ctx.fillText(txt||'88',bx+w*.625,by+w*.5);
+    ctx.font=`600 ${Math.round(10*u)}px 'Barlow Condensed',sans-serif`;ctx.fillStyle='rgba(255,255,255,.85)';ctx.textAlign='center';ctx.fillText(a,sx,sy+h/2+9*u);
+  }
+}
+function drawFOV(g){
+  for(const a of APPS){
+    const P=POLES[a],d=P.d;const c=P.cam;
+    const far=70,p1=pt(-(STOP+far),-1.5,d),p2=pt(-(STOP+far),HALF+3,d);
+    const gr=g.createLinearGradient(c[0],c[1],(p1[0]+p2[0])/2,(p1[1]+p2[1])/2);gr.addColorStop(0,`rgba(76,201,240,${.32*FX.fov})`);gr.addColorStop(1,'rgba(76,201,240,0)');
+    g.fillStyle=gr;poly(g,[c,p1,p2]);g.fill();
+    g.strokeStyle=`rgba(120,220,255,${.5*FX.fov})`;g.lineWidth=.12;g.setLineDash([.8,.8]);g.beginPath();g.moveTo(...c);g.lineTo(...p1);g.moveTo(...c);g.lineTo(...p2);g.stroke();g.setLineDash([]);
+  }
+}
+function densityColor(p,al){const t=clamp(p/35,0,1);const r=Math.round(lerp(47,255,Math.min(1,t*1.6))),gg=Math.round(lerp(210,75,Math.max(0,(t-.4)/.6)));return`rgba(${r},${gg},60,${al})`}
+function drawZones(g){
+  for(const a of APPS){const d=DIR[a],m=MET[a];const p0=pt(-STOP,0.6,d),p1=pt(-(STOP+80),HALF-.1,d);
+    g.fillStyle=densityColor(m.density,.22*FX.zones);g.fillRect(Math.min(p0[0],p1[0]),Math.min(p0[1],p1[1]),Math.abs(p1[0]-p0[0]),Math.abs(p1[1]-p0[1]));
+    g.strokeStyle=densityColor(m.density,.8*FX.zones);g.lineWidth=.2;g.setLineDash([1.2,.8]);g.strokeRect(Math.min(p0[0],p1[0]),Math.min(p0[1],p1[1]),Math.abs(p1[0]-p0[0]),Math.abs(p1[1]-p0[1]));g.setLineDash([]);
+    // queue length bracket
+    if(m.queue>2){const q0=pt(-STOP,HALF+1.2,d),q1=pt(-(STOP+Math.min(m.queue,150)),HALF+1.2,d);g.strokeStyle=`rgba(255,255,255,${.9*FX.zones})`;g.lineWidth=.25;g.beginPath();g.moveTo(...q0);g.lineTo(...q1);g.stroke()}
+  }
+}
+function boxLabel(v){return SPECS[v.type].yolo+' '+v.conf.toFixed(2)+' #'+v.id}
+function drawBoxes(g){
+  const lw=1.4/SC;
+  for(const v of vehicles){
+    if(v.crossed&&!v.violator)continue;
+    const dist=v.path.sStop-(v.s+v.sp.L/2);if(dist>72&&!v.violator)continue;
+    const col=v.violator&&v.flagged?'#ff3b3b':v.sp.box;
+    g.save();g.translate(v.x,v.y);g.rotate(v.h);g.strokeStyle=col;g.lineWidth=lw;const L=v.sp.L+.5,W=v.sp.W+.5;g.strokeRect(-L/2,-W/2,L,W);
+    g.lineWidth=lw*2.2;const k=Math.min(.8,L*.25);g.beginPath();
+    for(const[sx,sy]of[[-1,-1],[1,-1],[1,1],[-1,1]]){g.moveTo(sx*L/2,sy*W/2-(-sy)*0);g.lineTo(sx*L/2-sx*k,sy*W/2);g.moveTo(sx*L/2,sy*W/2);g.lineTo(sx*L/2,sy*W/2-sy*k*.6)}g.stroke();g.restore();
+    if(FX.trails&&v.trail.length>2){g.strokeStyle=col;g.lineWidth=lw*.9;g.globalAlpha=.55;g.beginPath();g.moveTo(v.trail[0][0],v.trail[0][1]);for(const p of v.trail)g.lineTo(p[0],p[1]);g.lineTo(v.x,v.y);g.stroke();g.globalAlpha=1}
+  }
+}
+function drawBoxLabels(){
+  if(SC<7)return;const u=CW/1280;ctx.font=`600 ${Math.round(9.5*u*Math.min(1.25,SC/9))}px 'JetBrains Mono',monospace`;ctx.textBaseline='bottom';ctx.textAlign='left';
+  for(const v of vehicles){
+    if(v.crossed&&!v.violator)continue;const dist=v.path.sStop-(v.s+v.sp.L/2);if(dist>72&&!v.violator)continue;
+    if(v.type==='bike'&&SC<11&&v.id%3)continue;
+    const [sx,sy]=W2S(v.x,v.y);const col=v.violator&&v.flagged?'#ff3b3b':v.sp.box;const txt=boxLabel(v);const w=ctx.measureText(txt).width+6*u;
+    const yy=sy-(v.sp.W*.5+.8)*SC;ctx.fillStyle=col;ctx.globalAlpha=.9;ctx.fillRect(sx-w/2,yy-12*u,w,12*u);ctx.globalAlpha=1;ctx.fillStyle='#0b0f16';ctx.fillText(txt,sx-w/2+3*u,yy-1*u);
+  }
+}
+function callout(wx,wy,title,sub,dx,dy,col){
+  const u=CW/1280;const [sx,sy]=W2S(wx,wy);const lx=sx+dx*u,ly=sy+dy*u;col=col||'#4cc9f0';
+  ctx.strokeStyle=col;ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(sx,sy);ctx.lineTo(lx,ly);ctx.stroke();ctx.fillStyle=col;ctx.beginPath();ctx.arc(sx,sy,3.5*u,0,7);ctx.fill();
+  ctx.font=`600 ${Math.round(15*u)}px 'Barlow Condensed',sans-serif`;const tw=ctx.measureText(title).width;ctx.font=`500 ${Math.round(12*u)}px 'Barlow',sans-serif`;const sw=sub?ctx.measureText(sub).width:0;
+  const w=Math.max(tw,sw)+16*u,h=(sub?40:24)*u;const bx=dx<0?lx-w:lx,by=ly-h/2;
+  ctx.fillStyle='rgba(8,15,28,.9)';rr(ctx,bx,by,w,h,5*u);ctx.fill();ctx.strokeStyle=col;ctx.lineWidth=1;ctx.stroke();
+  ctx.textAlign='left';ctx.textBaseline='top';ctx.fillStyle='#fff';ctx.font=`600 ${Math.round(15*u)}px 'Barlow Condensed',sans-serif`;ctx.fillText(title,bx+8*u,by+5*u);
+  if(sub){ctx.fillStyle='#b9c6d8';ctx.font=`500 ${Math.round(12*u)}px 'Barlow',sans-serif`;ctx.fillText(sub,bx+8*u,by+22*u)}
+}
+function drawFibre(g){
+  g.strokeStyle='#f28c28';g.lineWidth=.35;g.setLineDash([1.2,.6]);g.beginPath();g.moveTo(CABINET.x+CABINET.w,CABINET.y+.4);g.lineTo(14.2,-17.1);g.lineTo(14.2,-10.2);g.lineTo(140,-10.2);g.stroke();g.setLineDash([]);
+  if(FX.cut){const x=58,y=-10.2;g.strokeStyle='#ff3b3b';g.lineWidth=.6;g.beginPath();g.moveTo(x-1.4,y-1.4);g.lineTo(x+1.4,y+1.4);g.moveTo(x+1.4,y-1.4);g.lineTo(x-1.4,y+1.4);g.stroke()}
+  else{const k=(simT*14)%110;for(let i=0;i<3;i++){const x=20+((k+i*37)%110);g.fillStyle='#fff';g.beginPath();g.arc(x,-10.2,.45,0,7);g.fill()}}
+}
+function render(t){
+  // camera
+  const k=1-Math.exp(-dtFrame*1.6);view.x+=(target.x-view.x)*k;view.y+=(target.y-view.y)*k;view.w=Math.exp(lerp(Math.log(view.w),Math.log(target.w),k));
+  SC=CW/view.w;
+  ctx.setTransform(DPR,0,0,DPR,0,0);ctx.fillStyle='#45484b';ctx.fillRect(0,0,CW,CH);
+  ctx.save();ctx.translate(CW/2,CH/2);ctx.scale(SC,SC);ctx.translate(-view.x,-view.y);
+  if(bgCanvas)ctx.drawImage(bgCanvas,BG.x0,BG.y0,BG.w,BG.h);
+  if(FX.fov>0.01)drawFOV(ctx);
+  if(FX.zones>0.01)drawZones(ctx);
+  if(FX.fibre>0.01)drawFibre(ctx);
+  for(const w of walkers)drawWalker(ctx,w,t);
+  for(const v of vehicles)drawVehicle(ctx,v,t);
+  drawSignals(ctx,t);
+  if(FX.boxes)drawBoxes(ctx);
+  // effects
+  for(let i=EFX.length-1;i>=0;i--){const e=EFX[i];const age=simT-e.t0;if(age>e.dur){EFX.splice(i,1);continue}
+    if(e.type==='flash'){const on=(age%0.33)<0.12&&age<1.1;if(on){const gr=ctx.createRadialGradient(e.x,e.y,0,e.x,e.y,9);gr.addColorStop(0,'rgba(255,255,255,.95)');gr.addColorStop(1,'rgba(255,255,255,0)');ctx.fillStyle=gr;ctx.beginPath();ctx.arc(e.x,e.y,9,0,7);ctx.fill()}}
+    if(e.type==='ring'){const v=e.v;const r=3+((age*1.2)%1)*5;ctx.strokeStyle=`rgba(255,59,59,${1-((age*1.2)%1)})`;ctx.lineWidth=.35;ctx.beginPath();ctx.arc(v.x,v.y,r,0,7);ctx.stroke()}
+    if(e.type==='stopline'){const d=DIR[e.app];const p0=pt(-STOP+.1,0.5,d),p1=pt(-(STOP+.6),HALF,d);ctx.fillStyle=`rgba(255,40,40,${(Math.sin(age*12)*.5+.5)*.9})`;ctx.fillRect(Math.min(p0[0],p1[0]),Math.min(p0[1],p1[1]),Math.abs(p1[0]-p0[0]),Math.abs(p1[1]-p0[1]))}
+  }
+  // cloud shadows
+  for(const c of clouds){const gr=ctx.createRadialGradient(c.x,c.y,0,c.x,c.y,c.r);gr.addColorStop(0,'rgba(10,20,30,.10)');gr.addColorStop(1,'rgba(10,20,30,0)');ctx.fillStyle=gr;ctx.beginPath();ctx.arc(c.x,c.y,c.r,0,7);ctx.fill()}
+  ctx.restore();
+  drawBadges(t);
+  if(FX.boxes)drawBoxLabels();
+  for(const L of FX.labels){const r=typeof L==='function'?L():L;if(r)callout(...r)}
+  if(FX.dim>0.01){const gr=ctx.createLinearGradient(0,0,CW,0);gr.addColorStop(0,`rgba(6,11,22,${.82*FX.dim})`);gr.addColorStop(.65,`rgba(6,11,22,${.45*FX.dim})`);gr.addColorStop(1,`rgba(6,11,22,${.15*FX.dim})`);ctx.fillStyle=gr;ctx.fillRect(0,0,CW,CH)}
+}
+
+/* ============================ camera inset (perspective) ============================ */
+const CAM={x:4.6,y:-13.8,z:7.4,pitch:14*Math.PI/180};
+let IW=640,IH=360,F=560;
+function toCam(x,y,z){const rx=x-CAM.x,ry=y-CAM.y,rz=z-CAM.z,c=Math.cos(CAM.pitch),s=Math.sin(CAM.pitch);return[rx,-ry*s+rz*c,-ry*c-rz*s]}
+function proj(q){return[IW/2+F*q[0]/q[2],IH/2-F*q[1]/q[2]]}
+function poly3(g,pts,fill,stroke){
+  // pts: world [x,y,z]; near-plane clip at Z=0.4
+  let cp=pts.map(p=>toCam(p[0],p[1],p[2]));const N=0.4;const out=[];
+  for(let i=0;i<cp.length;i++){const a=cp[i],b=cp[(i+1)%cp.length];const ain=a[2]>=N,bin=b[2]>=N;if(ain)out.push(a);if(ain!==bin){const t=(N-a[2])/(b[2]-a[2]);out.push([a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t,N])}}
+  if(out.length<3)return false;g.beginPath();out.forEach((q,i)=>{const p=proj(q);i?g.lineTo(p[0],p[1]):g.moveTo(p[0],p[1])});g.closePath();if(fill){g.fillStyle=fill;g.fill()}if(stroke){g.strokeStyle=stroke;g.stroke()}return true;
+}
+function vehParts(v){
+  const L=v.sp.L,W=v.sp.W,b=v.body||'#888';const glass='#26303c';
+  switch(v.type){
+    case'bike':return[{x0:-L/2,x1:L/2,y0:-.17,y1:.17,z0:.05,z1:.85,c:'#1b1b1b'},{x0:-.35,x1:.15,y0:-.28,y1:.28,z0:.85,z1:1.42,c:v.shirt},{x0:-.12,x1:.18,y0:-.15,y1:.15,z0:1.42,z1:1.72,c:v.helmet}].concat(v.pillion?[{x0:-.85,x1:-.38,y0:-.26,y1:.26,z0:.85,z1:1.35,c:v.pillion}]:[]);
+    case'auto':return[{x0:-L/2,x1:L/2,y0:-W/2,y1:W/2,z0:.15,z1:.8,c:b,lights:1},{x0:-L/2+.05,x1:L*.2,y0:-W/2+.05,y1:W/2-.05,z0:.8,z1:1.75,c:'#e8c22a',side:'#2a2a2a',front:glass}];
+    case'bus':return[{x0:-L/2,x1:L/2,y0:-W/2,y1:W/2,z0:.3,z1:1.25,c:b,lights:1},{x0:-L/2+.05,x1:L/2-.05,y0:-W/2+.03,y1:W/2-.03,z0:1.25,z1:2.45,c:b,side:glass,front:glass,back:glass},{x0:-L/2,x1:L/2,y0:-W/2,y1:W/2,z0:2.45,z1:3.05,c:'#d6d3cc',side:b,front:b,back:b}];
+    case'truck':return[{x0:-L/2,x1:L/2,y0:-W/2+.1,y1:W/2-.1,z0:.25,z1:1.0,c:'#202020'},{x0:L/2-2.3,x1:L/2,y0:-W/2,y1:W/2,z0:.9,z1:2.9,c:b,front:glass,lights:1},{x0:-L/2,x1:L/2-2.4,y0:-W/2,y1:W/2,z0:1.0,z1:3.3,c:v.tarp}];
+    case'lcv':return[{x0:-L/2,x1:L/2,y0:-W/2,y1:W/2,z0:.3,z1:.95,c:'#5d5b57',lights:1},{x0:L/2-1.7,x1:L/2,y0:-W/2,y1:W/2,z0:.95,z1:2.1,c:b,front:glass}].concat(v.load?[{x0:-L/2+.2,x1:-L/2+2.2,y0:-W/2+.2,y1:W/2-.2,z0:.95,z1:1.6,c:'#a4794b'}]:[]);
+    case'suv':return[{x0:-L/2,x1:L/2,y0:-W/2,y1:W/2,z0:.3,z1:1.05,c:b,lights:1},{x0:-L*.36,x1:L*.2,y0:-W*.44,y1:W*.44,z0:1.05,z1:1.75,c:b,side:glass,front:glass,back:glass},{x0:-L/2+.1,x1:L/2-.1,y0:-W/2+.05,y1:W/2-.05,z0:0,z1:.3,c:'#121212'}];
+    default:return[{x0:-L/2,x1:L/2,y0:-W/2,y1:W/2,z0:.28,z1:.9,c:b,lights:1},{x0:-L*.3,x1:L*.16,y0:-W*.42,y1:W*.42,z0:.9,z1:1.45,c:b,side:glass,front:glass,back:glass},{x0:-L/2+.1,x1:L/2-.1,y0:-W/2+.05,y1:W/2-.05,z0:0,z1:.28,c:'#121212'}];
+  }
+}
+function drawBox3(g,cx,cy,h,p,bb){
+  const c=Math.cos(h),s=Math.sin(h);const W=(x,y)=>[cx+x*c-y*s,cy+x*s+y*c];
+  const b=[W(p.x0,p.y0),W(p.x1,p.y0),W(p.x1,p.y1),W(p.x0,p.y1)];
+  const faces=[[0,1,'side',[s,-c]],[1,2,'front',[c,s]],[2,3,'side',[-s,c]],[3,0,'back',[-c,-s]]];
+  const base=p.c;
+  for(const[i,j,kind,n]of faces){
+    const mx=(b[i][0]+b[j][0])/2,my=(b[i][1]+b[j][1])/2;if(n[0]*(CAM.x-mx)+n[1]*(CAM.y-my)<=0)continue;
+    let col=p[kind]||(kind==='side'?shade(base,.72):shade(base,.86));if(p[kind])col=kind==='side'?p[kind]:p[kind];
+    poly3(g,[[b[i][0],b[i][1],p.z0],[b[j][0],b[j][1],p.z0],[b[j][0],b[j][1],p.z1],[b[i][0],b[i][1],p.z1]],col);
+  }
+  if(p.z1<CAM.z)poly3(g,b.map(q=>[q[0],q[1],p.z1]),shade(base,1.04));
+  for(const q of b)for(const z of[p.z0,p.z1]){const cq=toCam(q[0],q[1],z);if(cq[2]>0.4){const pp=proj(cq);bb[0]=Math.min(bb[0],pp[0]);bb[1]=Math.min(bb[1],pp[1]);bb[2]=Math.max(bb[2],pp[0]);bb[3]=Math.max(bb[3],pp[1])}}
+}
+function drawInset(cnv,opts){
+  const g=cnv.getContext('2d');IW=cnv.width;IH=cnv.height;F=IW*0.86;
+  // sky
+  const hz=IH/2-F*Math.tan(CAM.pitch);const sky=g.createLinearGradient(0,0,0,hz+4);sky.addColorStop(0,'#b9c9d6');sky.addColorStop(1,'#e3e6e3');g.fillStyle=sky;g.fillRect(0,0,IW,hz+6);
+  g.fillStyle='#a9a8a0';g.fillRect(0,hz,IW,IH-hz);
+  // haze skyline
+  g.fillStyle='rgba(150,155,160,.6)';for(let i=0;i<16;i++){const x=(i*73)%IW,w=30+(i*37)%50,hh=6+(i*13)%16;g.fillRect(x,hz-hh,w,hh)}
+  // ground strips
+  const Y0=-14,Y1=-260;
+  poly3(g,[[-HALF,Y0,0],[HALF,Y0,0],[HALF,Y1,0],[-HALF,Y1,0]],'#55585b');
+  poly3(g,[[HALF,Y0,0],[HALF+4,Y0,0],[HALF+4,Y1,0],[HALF,Y1,0]],'#8c887f');
+  poly3(g,[[-HALF-4,Y0,0],[-HALF,Y0,0],[-HALF,Y1,0],[-HALF-4,Y1,0]],'#8c887f');
+  poly3(g,[[HALF,Y0,0],[HALF,Y1,0],[HALF,Y1,.18],[HALF,Y0,.18]],'#d8c04a');
+  poly3(g,[[-HALF,Y0,0],[-HALF,Y1,0],[-HALF,Y1,.18],[-HALF,Y0,.18]],'#d8c04a');
+  // median
+  poly3(g,[[-.5,-STOP-1.2,.25],[.5,-STOP-1.2,.25],[.5,Y1,.25],[-.5,Y1,.25]],'#d4bd45');
+  poly3(g,[[-.3,-STOP-1.5,.3],[.3,-STOP-1.5,.3],[.3,Y1,.3],[-.3,Y1,.3]],'#5f7843');
+  // lane dashes
+  for(const x of[-(MEDH+LW),MEDH+LW])for(let y=-STOP-16;y>-200;y-=7.5)poly3(g,[[x-.08,y,.01],[x+.08,y,.01],[x+.08,y-3,.01],[x-.08,y-3,.01]],'#e6e6e6');
+  poly3(g,[[MEDH+LW-.08,-STOP,.01],[MEDH+LW+.08,-STOP,.01],[MEDH+LW+.08,-STOP-16,.01],[MEDH+LW-.08,-STOP-16,.01]],'#e6e6e6');
+  if(opts.zones){const m=MET.N;poly3(g,[[.6,-STOP,.02],[HALF-.1,-STOP,.02],[HALF-.1,-STOP-80,.02],[.6,-STOP-80,.02]],densityColor(m.density,.25),densityColor(m.density,.9))}
+  // objects sorted
+  const objs=[];
+  for(const B of BUILDINGS){if(B.y0>-11||B.y1<-150||B.x1<-70||B.x0>80)continue;const cq=toCam((B.x0+B.x1)/2,(B.y0+B.y1)/2,B.h/2);if(cq[2]<1)continue;objs.push({k:'b',B,z:cq[2]})}
+  for(const T of TREES){if(T.y>-11||T.y<-150||Math.abs(T.x)>40)continue;const cq=toCam(T.x,T.y,4);if(cq[2]<1)continue;objs.push({k:'t',T,z:cq[2]})}
+  for(const v of vehicles){if(v.y>-12.5||v.y<-200||Math.abs(v.x)>9)continue;const cq=toCam(v.x,v.y,1);if(cq[2]<8.5)continue;objs.push({k:'v',v,z:cq[2]})}
+  objs.sort((a,b)=>b.z-a.z);
+  const dets=[];
+  for(const o of objs){
+    if(o.k==='b'){const B=o.B;const p={x0:-(B.x1-B.x0)/2,x1:(B.x1-B.x0)/2,y0:-(B.y1-B.y0)/2,y1:(B.y1-B.y0)/2,z0:0,z1:B.h,c:B.fac};const bb=[1e9,1e9,-1e9,-1e9];drawBox3(g,(B.x0+B.x1)/2,(B.y0+B.y1)/2,0,p,bb);
+      // windows on road-facing side
+      const fx=B.x0>0?B.x0-.02:B.x1+.02;const floors=Math.floor(B.h/3.1);
+      for(let f=0;f<floors;f++)for(let yy=B.y0+1;yy<B.y1-1.6;yy+=2.6){const z=f*3.1+1.1;poly3(g,[[fx,yy,z],[fx,yy+1.3,z],[fx,yy+1.3,z+1.3],[fx,yy,z+1.3]],(f+yy|0)%3?'rgba(40,55,70,.55)':'rgba(70,85,95,.5)')}
+      const fy=B.y1+.02;for(let f=0;f<floors;f++)for(let xx=B.x0+1;xx<B.x1-1.6;xx+=2.6){const z=f*3.1+1.1;poly3(g,[[xx,fy,z],[xx+1.3,fy,z],[xx+1.3,fy,z+1.3],[xx,fy,z+1.3]],'rgba(40,55,70,.5)')}
+    }else if(o.k==='t'){const T=o.T;const a=toCam(T.x,T.y,0),b=toCam(T.x,T.y,4.6);if(a[2]<.5)continue;const pa=proj(a),pb=proj(b);g.strokeStyle='#4a3a2a';g.lineWidth=Math.max(1,F*.3/a[2]);g.beginPath();g.moveTo(pa[0],pa[1]);g.lineTo(pb[0],pb[1]);g.stroke();const r=F*T.r/b[2];const gr=g.createRadialGradient(pb[0]-r*.3,pb[1]-r*.4,r*.1,pb[0],pb[1],r);gr.addColorStop(0,'#7da35c');gr.addColorStop(.7,'#4c7a39');gr.addColorStop(1,'#33562a');g.fillStyle=gr;g.beginPath();g.arc(pb[0],pb[1]-r*.2,r,0,7);g.fill()}
+    else{const v=o.v;
+      // ground shadow
+      const c=Math.cos(v.h),s=Math.sin(v.h),L=v.sp.L/2+.15,W=v.sp.W/2+.15;poly3(g,[[v.x+L*c-W*s+.3,v.y+L*s+W*c+.4,0.02],[v.x-L*c-W*s+.3,v.y-L*s+W*c+.4,0.02],[v.x-L*c+W*s+.3,v.y-L*s-W*c+.4,0.02],[v.x+L*c+W*s+.3,v.y+L*s-W*c+.4,0.02]],'rgba(0,0,0,.35)');
+      const bb=[1e9,1e9,-1e9,-1e9];for(const p of vehParts(v))drawBox3(g,v.x,v.y,v.h,p,bb);
+      // lights
+      const fwdToCam=(CAM.x-v.x)*c+(CAM.y-v.y)*s>0;
+      const bx=fwdToCam?v.sp.L/2+.02:-v.sp.L/2-.02;const ww=v.sp.W*.36;
+      for(const yy of(v.type==='bike'?[0]:[-ww,ww])){const q=toCam(v.x+bx*c-yy*s,v.y+bx*s+yy*c,v.type==='bus'?.8:.62);if(q[2]>.5){const pp=proj(q);const r=Math.max(1.2,F*.13/q[2]);g.fillStyle=fwdToCam?'#fff7d6':(v.brake?'#ff2d2d':'#a31d1d');if(!fwdToCam&&v.brake){g.shadowColor='#ff2d2d';g.shadowBlur=8}g.beginPath();g.ellipse(pp[0],pp[1],r*1.4,r*.8,0,0,7);g.fill();g.shadowBlur=0}}
+      if(v.type!=='bike'){const q=toCam(v.x+bx*c,v.y+bx*s,.45);if(q[2]>.5){const pp=proj(q);const w=F*.52/q[2],h=F*.12/q[2];g.fillStyle=v.type==='bus'||v.type==='truck'||v.type==='lcv'?'#f2d33a':'#f4f4f0';g.fillRect(pp[0]-w/2,pp[1]-h/2,w,h)}}
+      if(bb[2]>bb[0]&&o.z<95)dets.push({v,bb,z:o.z});
+    }
+  }
+  // atmospheric haze
+  const hg=g.createLinearGradient(0,hz,0,hz+IH*.25);hg.addColorStop(0,'rgba(220,224,226,.55)');hg.addColorStop(1,'rgba(220,224,226,0)');g.fillStyle=hg;g.fillRect(0,hz-4,IW,IH*.25);
+  // YOLO boxes
+  if(opts.boxes){
+    g.lineWidth=Math.max(1.5,IW/420);g.font=`600 ${Math.round(IW/56)}px 'JetBrains Mono',monospace`;g.textBaseline='bottom';
+    for(const d of dets){const v=d.v;if(v.crossed)continue;const[x0,y0,x1,y1]=d.bb;if(x1<0||x0>IW||y1<hz)continue;const col=v.sp.box;g.strokeStyle=col;g.strokeRect(x0,y0,x1-x0,y1-y0);
+      if(d.z<52){const txt=SPECS[v.type].yolo+' '+v.conf.toFixed(2)+(opts.ids?' #'+v.id:'');const tw=g.measureText(txt).width+6;g.fillStyle=col;g.fillRect(x0-1,y0-IW/48,tw,IW/48);g.fillStyle='#0b0f16';g.fillText(txt,x0+2,y0-2)}}
+  }
+  // HUD
+  g.fillStyle='rgba(0,0,0,.45)';g.fillRect(0,IH-IW/30,IW,IW/30);g.fillStyle='#e8e8e8';g.font=`500 ${Math.round(IW/52)}px 'JetBrains Mono',monospace`;g.textBaseline='middle';g.textAlign='left';
+  g.fillText('CAM N-01 · 4MP WDR · 15 fps · 2026-10-14 '+clock(simT),IW*.015,IH-IW/60);g.textAlign='right';g.fillText(opts.boxes?'YOLO26 · TensorRT FP16 · '+dets.filter(d=>!d.v.crossed).length+' objects':'RTSP H.265 main stream',IW*.985,IH-IW/60);g.textAlign='left';
+  return dets.filter(d=>!d.v.crossed);
+}
+function drawFrozen(cnv,t){const g=cnv.getContext('2d');const w=cnv.width,h=cnv.height;g.fillStyle='rgba(30,30,30,.06)';for(let i=0;i<300;i++){g.fillStyle=`rgba(${Math.random()*255|0},${Math.random()*255|0},${Math.random()*255|0},.08)`;g.fillRect(Math.random()*w,Math.random()*h,3,2)}
+  g.fillStyle='rgba(0,0,0,.6)';g.fillRect(w*.2,h*.38,w*.6,h*.24);g.strokeStyle='#ffb21f';g.lineWidth=2;g.strokeRect(w*.2,h*.38,w*.6,h*.24);g.fillStyle='#ffb21f';g.font=`700 ${w/26}px 'Barlow Condensed',sans-serif`;g.textAlign='center';g.textBaseline='middle';g.fillText('FEED FROZEN · LANE N DEGRADED',w/2,h*.46);g.fillStyle='#ddd';g.font=`500 ${w/44}px 'Barlow',sans-serif`;g.fillText('using historical traffic profile for North',w/2,h*.54);g.textAlign='left'}
+
+/* ============================ ANPR close-up ============================ */
+const PLATE='DL 8C AF 4721';
+function drawPlateScene(cnv,opt){
+  const g=cnv.getContext('2d'),w=cnv.width,h=cnv.height;
+  g.save();
+  const body=opt.color||'#c4c7ca';
+  g.fillStyle='#4a4d50';g.fillRect(0,0,w,h);
+  g.translate(w/2+(opt.dx||0)*w,h*.55+(opt.dy||0)*h);g.scale(opt.s||1,opt.s||1);g.rotate(opt.rot||0);
+  // car front
+  const cw=w*.9,ch=h*.7;
+  g.fillStyle=shade(body,.8);rr(g,-cw/2,-ch*.55,cw,ch*.95,ch*.14);g.fill();
+  g.fillStyle='#202831';poly(g,[[-cw*.36,-ch*.55],[cw*.36,-ch*.55],[cw*.44,-ch*.22],[-cw*.44,-ch*.22]]);g.fill();
+  g.fillStyle='rgba(160,190,220,.15)';poly(g,[[-cw*.3,-ch*.52],[-cw*.05,-ch*.52],[-cw*.15,-ch*.25],[-cw*.4,-ch*.25]]);g.fill();
+  g.fillStyle=body;rr(g,-cw*.5,-ch*.2,cw,ch*.42,ch*.08);g.fill();
+  const hl=g.createLinearGradient(0,-ch*.12,0,0);hl.addColorStop(0,'#fffbe8');hl.addColorStop(1,'#d8d2b0');g.fillStyle=hl;
+  rr(g,-cw*.46,-ch*.14,cw*.2,ch*.1,ch*.04);g.fill();rr(g,cw*.26,-ch*.14,cw*.2,ch*.1,ch*.04);g.fill();
+  g.fillStyle='#16191c';rr(g,-cw*.22,-ch*.12,cw*.44,ch*.12,ch*.03);g.fill();
+  g.strokeStyle='#2c3238';g.lineWidth=2;for(let k=-3;k<=3;k++){g.beginPath();g.moveTo(-cw*.2,-ch*.06+k*3);g.lineTo(cw*.2,-ch*.06+k*3);g.stroke()}
+  g.fillStyle=shade(body,.7);rr(g,-cw*.5,ch*.2,cw,ch*.2,ch*.06);g.fill();
+  // plate
+  const pw=cw*.42,ph=pw*.22;const px=-pw/2,py=ch*.04;
+  g.fillStyle='#f6f6f2';rr(g,px,py,pw,ph,ph*.12);g.fill();g.strokeStyle='#111';g.lineWidth=ph*.07;g.stroke();
+  g.fillStyle='#1d4fa8';g.fillRect(px+ph*.08,py+ph*.1,ph*.32,ph*.8);g.fillStyle='#fff';g.font=`700 ${ph*.2}px Barlow,sans-serif`;g.textAlign='center';g.textBaseline='middle';g.fillText('IND',px+ph*.24,py+ph*.72);
+  g.fillStyle='rgba(120,160,220,.7)';g.beginPath();g.arc(px+ph*.24,py+ph*.3,ph*.1,0,7);g.fill();
+  g.fillStyle='#111';g.font=`700 ${ph*.62}px 'Barlow Condensed',sans-serif`;g.fillText(PLATE,px+pw/2+ph*.15,py+ph*.54);
+  g.restore();
+  if(opt.blur){g.fillStyle='rgba(255,255,255,.07)';g.fillRect(0,0,w,h)}
+  if(opt.box){const pb=opt.box;g.strokeStyle='#2fd27a';g.lineWidth=Math.max(2,w/160);const bx=w/2-pw/2*(opt.s||1)-4,by=h*.55+ch*.04*(opt.s||1)-4;g.strokeRect(bx,by,pw*(opt.s||1)+8,ph*(opt.s||1)+8);g.fillStyle='#2fd27a';g.font=`600 ${w/30}px 'JetBrains Mono',monospace`;g.textBaseline='bottom';g.fillText('plate 0.98',bx,by-3)}
+}
+function drawPlateCrop(cnv,k){
+  // k: 0 raw (skewed, soft) -> 1 enhanced (deskewed, sharp)
+  const g=cnv.getContext('2d'),w=cnv.width,h=cnv.height;g.fillStyle='#1a1d20';g.fillRect(0,0,w,h);
+  g.save();g.translate(w/2,h/2);g.rotate(lerp(-0.09,0,k));g.transform(1,0,lerp(.12,0,k),1,0,0);
+  const pw=w*.86,ph=pw*.22;g.filter=k<1?`blur(${(1-k)*2.2}px) contrast(${lerp(.7,1.25,k)})`:'contrast(1.25)';
+  g.fillStyle=k<.5?'#cfcfc6':'#f8f8f4';rr(g,-pw/2,-ph/2,pw,ph,ph*.1);g.fill();g.strokeStyle='#111';g.lineWidth=ph*.06;g.stroke();
+  g.fillStyle='#1d4fa8';g.fillRect(-pw/2+ph*.08,-ph/2+ph*.1,ph*.32,ph*.8);g.fillStyle='#fff';g.font=`700 ${ph*.2}px Barlow,sans-serif`;g.textAlign='center';g.textBaseline='middle';g.fillText('IND',-pw/2+ph*.24,ph*.22);
+  g.fillStyle=k<.5?'#333':'#0a0a0a';g.font=`700 ${ph*.64}px 'Barlow Condensed',sans-serif`;g.fillText(PLATE,ph*.15,ph*.05);
+  g.restore();g.filter='none';
+}
+
+/* ============================ violation ============================ */
+let VIOL=null;
+function onViolation(v){
+  v.flagged=true;VIOL={v,t:simT,app:v.app,lane:v.lane,id:v.id,color:v.body||'#c4c7ca',type:v.type};
+  const P=POLES[v.app];for(let k=0;k<3;k++)EFX.push({type:'flash',x:P.anpr[0],y:P.anpr[1],t0:simT,dur:1.2});
+  EFX.push({type:'ring',v,t0:simT,dur:6});EFX.push({type:'stopline',app:v.app,t0:simT,dur:3});
+  logc('RED-LIGHT · '+NAME[v.app]+' lane '+(v.lane+1)+' · track #'+v.id,'r');
+}
+
+/* ============================ scenes ============================ */
+const tagFor=st=>`<span class="dot ${st}"></span>`;
+function setPanels(html){ov.innerHTML=html}
+function el(id){return document.getElementById(id)}
+const SCENES=[
+{ kick:'Introduction',title:'From the camera to the control room',dur:11,
+  text:'Nivosk Technologies presents the AI-Powered Adaptive Traffic Signal Management System for the Rapturous team. This demo follows one junction and its nearby police station, step by step, exactly as the solution proposal describes.',
+  cam:{x:-8,y:-6,w:118},
+  enter(){resetSim();Object.assign(FX,{fov:0,boxes:0,trails:0,zones:0,labels:[],dim:1,fibre:0,cut:false});
+    setPanels(`<div class="pnl" style="left:4%;top:9%;width:48%;padding:2cqw 2.2cqw">
+      <div class="logochip"><img src="${LOGO}" alt="NIVOSK"></div>
+      <div style="margin-top:1.4cqw"><span class="tag sun">Solution demo · prepared for Rapturous</span></div>
+      <div class="big">AI-Powered Adaptive Traffic Signal Management System</div>
+      <p style="font-size:1.35cqw">Signals that respond to real traffic, every second, with number-plate reading and a police station control room.</p>
+      <div class="chips"><span class="chip">Adaptive AI signal control</span><span class="chip">Vehicle monitoring dashboard</span><span class="chip">Remote Yellow Mode</span><span class="chip">ANPR &amp; violation detection</span></div>
+    </div>`)},
+  tick(t){target.x=-8+t*0.6}
+},
+{ kick:'The problem',title:'Fixed timers ignore real traffic',dur:22,
+  text:'Today most signals run on fixed timers. Every road gets the same green whether it is jammed or empty. Watch the west road get a full green with almost no vehicles, while the north road’s queue keeps growing.',
+  cam:{x:10,y:-12,w:132},
+  enter(){if(ctrl.mode!=='fixed'||simT>4)resetSim();setMode('fixed');Object.assign(FX,{fov:0,boxes:0,trails:0,zones:0,dim:0,fibre:0,
+    labels:[()=>[5.8,-52,'North road · busy','queue '+Math.round(MET.N.queue)+' m · '+(MET.N.count+MET.N.backlog)+' vehicles waiting',60,-20,'#ff6b6b'],()=>[-46,-4,'West road · quiet',sig('W')==='G'?'green with an empty road':'only a few vehicles',-30,-60,'#ffb21f']]});
+    setPanels(`<div class="pnl" style="right:1.6%;top:3%;width:26%">
+      <span class="tag red">Today · fixed timer</span><h3>Every road gets 25 s, busy or not</h3>
+      <div id="fx-rows"></div>
+      <div class="kpi"><b class="num" id="fx-w">0.0 s</b><small>green time given to an<br>empty road (this demo)</small></div>
+      <div class="kpi"><b class="num" id="fx-q">0 m</b><small>north queue length</small></div>
+      <p style="font-size:.95cqw;color:var(--muted);margin-top:.6cqw">Cycle: 4 × (25 s green + 5 s amber/all-red) = 120 s</p></div>`)},
+  update(){el('fx-rows').innerHTML=APPS.map(a=>`<div class="row"><span>${tagFor(sig(a))} ${NAME[a]}</span><div class="bar"><i style="width:${MET[a].density*2.5}%;background:${densityColor(MET[a].density,1)}"></i></div><span class="mono num" style="text-align:right">25 s</span></div>`).join('');
+    el('fx-w').textContent=STATS.waste.fixed.toFixed(1)+' s';el('fx-q').textContent=Math.round(MET.N.queue)+' m'}
+},
+{ kick:'Step 1 · See the traffic',title:'Cameras on every approach',dur:20,
+  text:'The system starts with sight. One traffic camera per approach watches every road coming into the junction, day and night. Each approach also gets a fast-shutter ANPR camera for number plates. Everything connects to one roadside box.',
+  cam:{x:24,y:-12,w:96},
+  enter(){Object.assign(FX,{fov:1,boxes:0,trails:0,zones:0,dim:0,fibre:1,cabinet:1,
+    labels:[()=>[POLES.N.cam[0],POLES.N.cam[1],'Traffic + ANPR cameras','on the signal arm, one pair per approach',-50,-150],()=>[CABINET.x+.7,CABINET.y+.4,'Roadside box','Jetson Orin NX · PoE switch · 3 kVA UPS',40,-120,'#f28c28'],()=>[POLES.W.head[0],POLES.W.head[1],'Signal head + countdown','switched by the AI through the controller',30,170,'#2fd27a'],()=>[16,-10.2,'Fibre to police station','direct private link, not the internet',60,150,'#f28c28']]});
+    setPanels(`<div class="pnl inset" style="right:1.6%;top:3%;width:36%"><canvas id="camc" width="640" height="360"></canvas><div class="cap"><span class="rec"></span>LIVE · North approach</div></div>
+    <div class="pnl" style="right:1.6%;top:48%;width:36%">
+      <span class="tag cyan">At the junction · per approach</span>
+      <div class="legend" style="margin-top:.8cqw;grid-template-columns:1fr">
+        <div><b style="font-family:var(--display);font-size:1.3cqw">Traffic camera ×4</b><span class="n" style="color:var(--muted)">4MP · WDR · IP67</span></div>
+        <div><b style="font-family:var(--display);font-size:1.3cqw">ANPR camera ×4</b><span class="n" style="color:var(--muted)">4–8MP · IR · fast shutter</span></div>
+        <div><b style="font-family:var(--display);font-size:1.3cqw">AI edge unit</b><span class="n" style="color:var(--muted)">Jetson Orin NX 16GB</span></div>
+        <div><b style="font-family:var(--display);font-size:1.3cqw">Backup power</b><span class="n" style="color:var(--muted)">3 kVA UPS</span></div>
+      </div></div>`)}
+},
+{ kick:'Step 2 · Spot every vehicle',title:'YOLO recognises every vehicle and its type',dur:24,
+  text:'On the roadside AI computer, a YOLO model finds every vehicle ten to fifteen times a second and labels its type: two-wheeler, auto, car, LCV, truck or bus. A tracker then gives each vehicle its own ID and follows it from frame to frame, so nothing is counted twice.',
+  cam:{x:22,y:-38,w:66},
+  enter(){Object.assign(FX,{fov:.5,boxes:1,trails:1,zones:0,dim:0,fibre:0,labels:[]});
+    setPanels(`<div class="pnl inset" style="right:1.6%;top:3%;width:46%"><canvas id="camc" width="800" height="450"></canvas><div class="cap"><span class="rec"></span>LIVE · AI view · North approach</div></div>
+    <div class="pnl" style="right:1.6%;top:62%;width:46%">
+      <div style="display:flex;justify-content:space-between;align-items:center"><span class="tag cyan">Detected now · North</span><span class="mono" style="font-size:.95cqw;color:var(--muted)">detection ≥95% · classification ≥93% SLA</span></div>
+      <div class="legend" id="lg" style="margin-top:.6cqw"></div></div>`)},
+  update(){const by=MET.N.by;const rows=[['two-wheeler','bike'],['auto','auto'],['car / SUV',['car','suv']],['LCV','lcv'],['truck (HCV)','truck'],['bus','bus']];
+    el('lg').innerHTML=rows.map(([n,k])=>{const c=Array.isArray(k)?k.reduce((s,x)=>s+(by[x]||0),0):(by[k]||0);const col=SPECS[Array.isArray(k)?k[0]:k].box;return`<div><span class="sw" style="border-color:${col}"></span>${n}<span class="n num">${c}</span></div>`}).join('')}
+},
+{ kick:'Step 3 · Count and measure',title:'Per-lane counts, queue length and road space',dur:22,
+  text:'Each camera is calibrated once to real road distances. The system counts the vehicles on each road, measures the queue, and works out how much road space they occupy. A heavy truck counts as 45 square metres, a car as 9, a two-wheeler as 1.6, so the busiest road is clear.',
+  cam:{x:26,y:-4,w:150},
+  enter(){Object.assign(FX,{fov:0,boxes:1,trails:0,zones:1,dim:0,fibre:0,labels:[]});
+    setPanels(`<div class="pnl" style="right:1.6%;top:3%;width:34%">
+      <span class="tag cyan">Lane analytics · updated live</span><h3>How busy is each road?</h3>
+      <div style="display:grid;grid-template-columns:5cqw 3.4cqw 4.4cqw 5cqw 1fr;gap:.35cqw .6cqw;align-items:center;font-size:1cqw" id="ct"></div>
+      <h4>Road space per vehicle</h4>
+      <div class="legend"><div><span class="sw" style="border-color:#ff4d6d"></span>heavy truck<span class="n">45 m²</span></div><div><span class="sw" style="border-color:#ff8c5a"></span>bus<span class="n">40 m²</span></div><div><span class="sw" style="border-color:#4cc9f0"></span>car / SUV<span class="n">9 m²</span></div><div><span class="sw" style="border-color:#9be15d"></span>auto<span class="n">4 m²</span></div><div><span class="sw" style="border-color:#ffd166"></span>two-wheeler<span class="n">1.6 m²</span></div><div><span class="sw" style="border-color:#c77dff"></span>LCV<span class="n">15 m²</span></div></div>
+      <p style="font-size:.95cqw;color:var(--muted);margin-top:.8cqw">Zone = 80 m of approach, 2 lanes. Density = occupied area ÷ zone area.</p></div>`)},
+  update(){el('ct').innerHTML='<span style="color:var(--muted)">Road</span><span style="color:var(--muted)">Veh.</span><span style="color:var(--muted)">Queue</span><span style="color:var(--muted)">Area</span><span style="color:var(--muted)">Density</span>'+APPS.map(a=>{const m=MET[a];return`<span>${tagFor(sig(a))} ${NAME[a]}</span><span class="mono num">${m.count}</span><span class="mono num">${Math.round(m.queue)} m</span><span class="mono num">${Math.round(m.area)} m²</span><div class="bar"><i style="width:${Math.min(100,m.density*2.6)}%;background:${densityColor(m.density,1)}"></i></div>`}).join('')}
+},
+{ kick:'Step 4 · Decide the timing',title:'Busier road, longer green, within safe limits',dur:26,
+  text:'Every second the decision engine checks safety first: is the system healthy, is yellow mode on, is an emergency vehicle coming? Then it picks the road under the most pressure and computes its green time, between the minimum and maximum set by traffic engineers. All four roads together always finish one full cycle within 120 seconds, the limit in the IRC:93 signal guidelines.',
+  cam:{x:26,y:-4,w:150},
+  enter(){setMode('adaptive');Object.assign(FX,{fov:0,boxes:0,trails:0,zones:.6,dim:0,fibre:0,labels:[]});this._k=0;
+    setPanels(`<div class="pnl" style="right:1.6%;top:3%;width:35%">
+      <div style="display:flex;justify-content:space-between"><span class="tag green">Decision cycle · every 1 s</span><span class="mono" id="dc-t" style="font-size:.95cqw;color:var(--muted)"></span></div>
+      <div class="flow" style="margin-top:.7cqw" id="flow">
+        <div class="fs" data-i="0">System health OK?<span class="r ck">yes</span></div>
+        <div class="fs" data-i="1">Remote yellow mode active?<span class="r">no</span></div>
+        <div class="fs" data-i="2">Emergency preemption?<span class="r">no</span></div>
+        <div class="fs" data-i="3">Read lane metrics<span class="r">density · queue · wait</span></div>
+        <div class="fs" data-i="4">Select highest-pressure road<span class="r" id="dc-sel">–</span></div>
+        <div class="fs" data-i="5">Cycle limit check<span class="r">all 4 roads ≤ 120 s</span></div>
+        <div class="fs" data-i="6">Safety interlock<span class="r">amber → all-red → green</span></div>
+      </div>
+      <h4>Green time for the next cycle</h4><div id="alloc"></div><div id="ctot" style="font-size:1cqw;margin-top:.4cqw"></div>
+      <div class="mono" style="font-size:1.05cqw;margin-top:.6cqw;padding:.5cqw .7cqw;background:rgba(255,255,255,.05);border-radius:.35cqw" id="formula"></div></div>`)},
+  update(t){const k=Math.floor(t*3)%8;document.querySelectorAll('#flow .fs').forEach((e,i)=>e.classList.toggle('on',i<=k&&k<7||(k===7&&i===6)));
+    const d=decide();const sel=ctrl.phase==='G'?ctrl.cur:d.app;el('dc-sel').textContent=NAME[sel];el('dc-t').textContent=clock(simT);
+    const G=scalePlan(d);const tot=cycleTotal(G);
+    el('alloc').innerHTML=APPS.map(a=>`<div class="row"><span>${tagFor(sig(a))} ${NAME[a]}</span><div class="bar"><i style="width:${G[a]/ctrl.Gmax*100}%;background:${a===sel?'#2fd27a':'#5d708c'}"></i></div><span class="mono num" style="text-align:right">${G[a]} s</span></div>`).join('');
+    el('ctot').innerHTML=`Greens ${APPS.reduce((s,a)=>s+G[a],0)} s + 4 × ${LOST()} s amber/all-red = <b class="mono">${tot} s</b> <span class="ck">✓ ≤ ${ctrl.CYCLE} s</span>`;
+    const r=d.all[sel];el('formula').innerHTML=`G = G<sub>min</sub> + share × (G<sub>max</sub> − G<sub>min</sub>)<br>${NAME[sel]}: ${ctrl.Gmin} + ${r.share.toFixed(2)} × (${ctrl.Gmax} − ${ctrl.Gmin}) = ${r.G} s`+(G[sel]<r.G?` → <b style="color:#7debae">${G[sel]} s</b> to fit the 120 s cycle`:` <b style="color:#7debae">✓</b>`)}
+},
+{ kick:'Steps 5–6 · Change the lights, keep traffic moving',title:'New timing reaches the signal in under 2 seconds',dur:30,
+  text:'The decision goes to the signal controller in under two seconds, always through the normal amber and all-red safety intervals. Green is extended second by second while the queue is still moving, but only if the full cycle stays within 120 seconds, and ended early once the queue clears. No green time is wasted on empty roads.',
+  cam:{x:24,y:-6,w:140},
+  enter(){setMode('adaptive');Object.assign(FX,{fov:0,boxes:0,trails:0,zones:0,dim:0,fibre:0,labels:[()=>{const a=ctrl.cur;const P=POLES[a];if(ctrl.phase!=='G')return null;return[P.head[0],P.head[1],NAME[a]+' green · '+Math.max(0,Math.ceil(ctrl.planG-ctrl.t))+' s left',ctrl.ext?'extended +'+ctrl.ext+' s · queue still moving':'planned '+ctrl.planG+' s',a==='W'?-60:60,a==='N'?-40:40,'#2fd27a']}]});
+    setPanels(`<div class="pnl" style="right:1.6%;top:3%;width:33%">
+      <span class="tag green">AI control · live</span><h3>Signal phase log</h3>
+      <div class="log" id="plog"></div>
+      <h4>Current cycle · all 4 roads</h4>
+      <div class="row" style="grid-template-columns:1fr 6.5cqw"><div class="bar" style="height:1cqw"><i id="cyb" style="background:#4cc9f0"></i></div><span class="mono num" id="cyt" style="text-align:right"></span></div>
+      <p style="font-size:.95cqw;color:var(--muted);margin:.2cqw 0 0" id="cyn"></p>
+      <h4>Command to controller</h4>
+      <div class="kpi" style="margin-top:0"><b class="num" id="lat">0.4 s</b><small>decision → relay board<br>target ≤ 0.5 s · SLA &lt; 2 s end to end</small></div>
+      <h4>Green given to an empty road</h4>
+      <div class="row"><span>Fixed timer</span><div class="bar"><i id="wb1" style="background:#ff4b4b"></i></div><span class="mono num" id="w1" style="text-align:right"></span></div>
+      <div class="row"><span>AI timing</span><div class="bar"><i id="wb2" style="background:#2fd27a"></i></div><span class="mono num" id="w2" style="text-align:right"></span></div>
+      <p style="font-size:.95cqw;color:var(--muted)">Measured in this simulation since the demo started.</p></div>`)},
+  update(){el('plog').innerHTML=ctrl.log.slice(0,7).map(l=>`<div><span class="t">${clock(l.t)}</span>${l.txt}</div>`).join('');
+    el('lat').textContent=(0.32+((simT*7)%1)*0.12).toFixed(2)+' s';{const ce=ctrl.cycleN?Math.min(ctrl.CYCLE,simT-ctrl.cycleStart):0;el('cyt').textContent=Math.round(ce)+' / '+ctrl.CYCLE+' s';el('cyb').style.width=ce/ctrl.CYCLE*100+'%';el('cyn').textContent=ctrl.cycleN?'Cycle '+ctrl.cycleN+' · planned '+cycleTotal(ctrl.plan)+' s · never above 120 s (IRC:93)':'waiting for first AI cycle';}const a=STATS.waste.fixed,b=STATS.waste.adaptive,m=Math.max(a,b,1);
+    el('w1').textContent=a.toFixed(1)+' s';el('w2').textContent=b.toFixed(1)+' s';el('wb1').style.width=a/m*100+'%';el('wb2').style.width=b/m*100+'%'}
+},
+{ kick:'ANPR · Red-light violation',title:'Only violators are read, never compliant vehicles',dur:30,
+  text:'When a tracked vehicle crosses the stop line on red, the junction flags it. The ANPR camera captures a burst of three frames, a plate model locates the number plate, the image is enhanced, and OCR reads the characters, checked against Indian plate formats. A high-confidence read becomes a tamper-evident evidence packet.',
+  cam:{x:0,y:0,w:72},
+  enter(){setMode('adaptive');VIOL=null;
+    // choose a red approach with a car-like vehicle at the head
+    const turn=a=>ctrl.cq.includes(a)?ctrl.cq.indexOf(a):ctrl.cq.length+((APPS.indexOf(a)-APPS.indexOf(ctrl.cur)+4)%4);const byTurn=APPS.filter(a=>!(a===ctrl.cur&&ctrl.phase!=='AR')).sort((x,y)=>turn(y)-turn(x));
+    let best=null;for(const a of byTurn){if(best)break;for(const v of vehicles){if(v.app!==a||v.crossed||v.ignore)continue;const dist=v.path.sStop-(v.s+v.sp.L/2);if(dist<6&&['car','suv'].includes(v.type)&&(!best||dist<best.d))best={v,d:dist,a}}}
+    if(!best){for(const a of APPS){if(a===ctrl.cur)continue;for(const v of vehicles){if(v.app!==a||v.crossed)continue;const dist=v.path.sStop-(v.s+v.sp.L/2);if(dist<6&&v.type!=='bike'&&v.type!=='bus'&&v.type!=='truck'&&(!best||dist<best.d))best={v,d:dist,a}}}}
+    if(!best){const a=APPS.find(x=>x!==ctrl.cur);const v=newVehicle(a,'car','S',0,PATHS[a][0].S.sStop-40,11);vehicles.push(v);best={v,a}}
+    this._v=best.v;this._v.violator=true;if(this._v.type==='auto'){this._v.type='car';this._v.sp=SPECS.car;this._v.body='#c4c7ca'}
+    const d=DIR[best.a];const c=pt(-(STOP+6),3,d);this.cam={x:c[0]+(d[0]===0?18:0)+(d[0]>0?6:d[0]<0?-6:0)+14,y:c[1]+(d[1]===0?0:0),w:72};
+    Object.assign(FX,{fov:0,boxes:1,trails:1,zones:0,dim:0,fibre:0,labels:[()=>VIOL?[VIOL.v.x,VIOL.v.y,'RED-LIGHT VIOLATION','track #'+VIOL.id+' crossed the stop line on red',-150,-70,'#ff3b3b']:null]});
+    setPanels(`<div class="pnl" style="right:1.6%;top:3%;width:40%;font-size:1.05cqw">
+      <div style="display:flex;justify-content:space-between;align-items:center"><span class="tag red" id="vs">Watching stop lines on red</span><span class="mono" style="font-size:.95cqw;color:var(--muted)" id="vt"></span></div>
+      <div class="steps" style="margin-top:.7cqw" id="vsteps">
+        <div class="st" data-k="0"><span class="i">1</span>Stop-line crossing on red · junction unit raises event</div>
+        <div class="st" data-k="1"><span class="i">2</span>ANPR burst · 3 frames + context clip</div>
+        <div class="st" data-k="2"><span class="i">3</span>Plate detection · compact YOLO on vehicle crop</div>
+        <div class="st" data-k="3"><span class="i">4</span>Enhancement · deskew, contrast, best frame</div>
+        <div class="st" data-k="4"><span class="i">5</span>OCR · fine-tuned PaddleOCR</div>
+      </div>
+      <div class="thumbs"><canvas id="b0" width="240" height="150"></canvas><canvas id="b1" width="240" height="150"></canvas><canvas id="b2" width="240" height="150"></canvas><canvas id="crop" width="420" height="110" style="width:12cqw"></canvas></div>
+      <div class="ocr" id="ocr">${PLATE.split('').map(c=>c===' '?'<span class="gap"></span>':`<span>${c}</span>`).join('')}</div>
+      <div id="vres" style="min-height:6.4cqw"></div></div>`)},
+  tick(t){if(t>1.6&&this._v&&!this._v.ignore){this._v.ignore=true;this._v.v0=12}
+    if(VIOL&&simT-VIOL.t<1.6){const v=VIOL.v;target.x=lerp(target.x,v.x+15,.03);target.y=lerp(target.y,v.y,.03)}
+    if(t>22)ctrl.excluded=null},
+  update(t){
+    const vt=VIOL?simT-VIOL.t:-1;el('vt').textContent=clock(simT);
+    if(VIOL){el('vs').textContent='Violation · '+NAME[VIOL.app]+' approach';}
+    const k=vt<0?-1:vt<1.2?0:vt<2.8?1:vt<4.4?2:vt<6?3:4;
+    document.querySelectorAll('#vsteps .st').forEach((e,i)=>e.classList.toggle('on',i<=k));
+    const col=VIOL?VIOL.color:'#c4c7ca';
+    if(vt>1.2){for(let i=0;i<3;i++)drawPlateScene(el('b'+i),{color:col,dx:[-.08,-.02,.04][i],dy:[.05,0,-.04][i],s:[.8,.95,1.08][i],blur:i!==1,box:vt>2.8&&i===1})}
+    else for(let i=0;i<3;i++){const g=el('b'+i).getContext('2d');g.fillStyle='#202428';g.fillRect(0,0,240,150)}
+    if(vt>4.4)drawPlateCrop(el('crop'),clamp((vt-4.4)/1.4,0,1));else{const g=el('crop').getContext('2d');g.fillStyle='#202428';g.fillRect(0,0,420,110)}
+    const spans=[...document.querySelectorAll('#ocr span:not(.gap)')];const nOn=vt>6?Math.floor((vt-6)/0.22):0;spans.forEach((s,i)=>s.classList.toggle('on',i<nOn));
+    if(vt>9){el('vres').innerHTML=`<div style="display:flex;gap:1cqw;flex-wrap:wrap;margin-top:.3cqw"><span class="ck">✓ confidence 0.97 ≥ 0.90</span><span class="ck">✓ valid Indian format (DL · 8C · AF · 4721)</span></div>
+      ${vt>10.5?`<div style="margin-top:.5cqw;padding:.6cqw .8cqw;border:1px solid rgba(255,75,75,.45);border-radius:.4cqw;background:rgba(255,75,75,.08)"><b style="font-family:var(--display);font-size:1.3cqw">Evidence packet</b> <span style="color:var(--muted)">→ sent to police station</span><div class="mono" style="font-size:.9cqw;color:#c9d4e4;margin-top:.2cqw">plate ${PLATE} · 3 images · 10 s clip · ${clock(VIOL.t)} · J-01 · ${NAME[VIOL.app]} lane ${VIOL.lane+1} · signal RED<br>SHA-256 7f3a9c…e41b · tamper-evident</div></div>`:''}`}
+    else el('vres').innerHTML=VIOL?'':'<p style="color:var(--muted)">Compliant vehicles: no plate is read or stored.</p>'}
+},
+{ kick:'Steps 7 · Watch it live',title:'Police station control room',dur:30,
+  text:'Everything flows over a direct fibre link to the nearby police station. There, a second Jetson reads plates, the control room server stores tamper-evident evidence, and officers watch live counts and signal status. Each violation is reviewed by an officer, and only approved cases are sent to e-Challan.',
+  cam:{x:0,y:-2,w:84},
+  enter(){setMode('adaptive');Object.assign(FX,{fov:0,boxes:1,trails:0,zones:0,dim:0,fibre:0,labels:[]});this._st=0;
+    const plate=VIOL?PLATE:PLATE;
+    setPanels(`<div class="pnl dash">
+      <div class="dhead"><img src="${LOGO}" alt="" style="height:2.2cqw;background:#fff;border-radius:.3cqw;padding:.2cqw .4cqw"><b>Traffic Control Room · Police Station</b><span class="tag green" style="margin-left:auto"><span class="dot G"></span>Junction J-01 online</span><span class="mono" id="dclock" style="font-size:1cqw;color:var(--muted)"></span></div>
+      <div class="dgrid">
+        <div class="tile arch">
+          <div class="node n"><b>Junction J-01</b><small>Jetson Orin NX · signal AI<br>runs even if link is down</small></div>
+          <div class="fib"><span>ANPR video · events · counts (~40 Mbps)</span><i class="pk"></i><i class="pk" style="animation-delay:-.9s"></i><i class="pk b"></i><span class="lo">yellow mode · config · model updates</span></div>
+          <div class="node n"><b>Police station rack</b><small>ANPR Jetson Orin NX · control server<br>NAS 4 × 8 TB · firewall · UPS</small></div>
+          <div class="fib" style="max-width:9cqw"><i class="pk" style="animation-duration:2.4s"></i><span>approved only</span></div>
+          <div class="node"><b>e-Challan / City ATMS</b><small>REST via firewall</small></div>
+        </div>
+        <div class="tile"><h4>Live · Junction J-01</h4><canvas id="minic" width="640" height="360" style="width:100%;border-radius:.3cqw;display:block"></canvas><h4>Evidence storage</h4><div class="row" style="grid-template-columns:1fr auto"><span style="color:var(--muted)">NAS · 4 × 8 TB</span><span class="mono">≈ 2 months ANPR video</span></div><div class="row" style="grid-template-columns:1fr auto"><span style="color:var(--muted)">Custody</span><span>police station, no third-party cloud</span></div>
+          <div style="display:flex;gap:1cqw;margin-top:.6cqw;font-size:1cqw" id="dsig"></div></div>
+        <div class="tile"><h4>Vehicles counted · since demo start</h4><div id="dcount"></div><h4>Class mix</h4><div id="dmix" style="display:flex;height:1.2cqw;border-radius:.3cqw;overflow:hidden"></div><div id="dmixl" style="display:flex;flex-wrap:wrap;gap:.3cqw .9cqw;font-size:.9cqw;color:var(--muted);margin-top:.4cqw"></div><h4>Signal decisions</h4><div class="log" id="dlog"></div></div>
+        <div class="tile"><h4>Violation review queue</h4>
+          <div class="vq"><canvas id="vthumb" width="240" height="150" style="width:9cqw;border-radius:.3cqw"></canvas>
+          <div><div class="plate">${plate}</div><div class="mono" style="font-size:.9cqw;color:var(--muted);margin-top:.3cqw">${VIOL?clock(VIOL.t):clock(simT-40)} · J-01 · ${VIOL?NAME[VIOL.app]:'East'} lane ${VIOL?VIOL.lane+1:1}<br>red-light · confidence 0.97</div></div></div>
+          <div style="display:flex;gap:.6cqw;margin-top:.8cqw"><span class="btn ok" id="bA">Approve</span><span class="btn no">Reject</span><span id="vstat" style="margin-left:auto;font-size:1cqw;color:var(--muted);align-self:center">awaiting officer</span></div>
+          <div class="log" id="audit" style="margin-top:.7cqw"></div>
+        </div>
+      </div>
+      <svg class="cursor" id="cur" viewBox="0 0 24 24" style="left:60%;top:60%"><path d="M3 2l7 19 2.5-7.5L20 11z" fill="#fff" stroke="#000" stroke-width="1.2"/></svg>
+    </div>`);
+    drawPlateScene(el('vthumb'),{color:VIOL?VIOL.color:'#c4c7ca',s:.95});},
+  update(t){
+    const mc=el('minic');if(mc){const g=mc.getContext('2d');g.drawImage(cv,0,0,cv.width,cv.height,0,0,mc.width,mc.height)}
+    el('dclock').textContent=clock(simT);el('dlog').innerHTML=ctrl.log.slice(0,6).map(l=>`<div><span class="t">${clock(l.t)}</span>${l.txt}</div>`).join('');
+    el('dsig').innerHTML=APPS.map(a=>`<span>${tagFor(sig(a))} ${NAME[a]}</span>`).join('')+`<span style="margin-left:auto" class="mono">${ctrl.phase==='G'?NAME[ctrl.cur]+' '+Math.max(0,Math.ceil(ctrl.planG-ctrl.t))+' s':'changing'}</span>`;
+    const tot=APPS.reduce((s,a)=>s+STATS.crossed[a],0)||1;const mx=Math.max(...APPS.map(a=>STATS.crossed[a]),1);
+    el('dcount').innerHTML=APPS.map(a=>`<div class="row"><span>${NAME[a]}</span><div class="bar"><i style="width:${STATS.crossed[a]/mx*100}%;background:#4cc9f0"></i></div><span class="mono num" style="text-align:right">${STATS.crossed[a]}</span></div>`).join('');
+    const types=[['bike','two-wheeler'],['car','car'],['suv','SUV'],['auto','auto'],['lcv','LCV'],['truck','truck'],['bus','bus']];const sum=types.reduce((s,[k])=>s+(STATS.byType[k]||0),0)||1;
+    el('dmix').innerHTML=types.map(([k])=>`<i style="width:${(STATS.byType[k]||0)/sum*100}%;background:${SPECS[k].box};display:block"></i>`).join('');
+    el('dmixl').innerHTML=types.map(([k,n])=>`<span><span class="sw" style="display:inline-block;vertical-align:middle;border-color:${SPECS[k].box};margin-right:.3cqw"></span>${n} ${Math.round((STATS.byType[k]||0)/sum*100)}%</span>`).join('');
+    const cur=el('cur'),bA=el('bA');
+    if(t>9&&this._st===0){this._st=1;const r=bA.getBoundingClientRect(),o=ov.getBoundingClientRect();cur.style.left=((r.left+r.width*.5-o.left)/o.width*100)+'%';cur.style.top=((r.top+r.height*.6-o.top)/o.height*100)+'%'}
+    if(t>10.6&&this._st===1){this._st=2;cur.classList.add('click');bA.classList.add('pressed');el('vstat').innerHTML='<span class="ck">✓ approved · exported to e-Challan</span>';
+      el('audit').innerHTML=`<div><span class="t">${clock(simT)}</span>Approved by officer (ID 0142) · logged</div><div><span class="t">${clock(simT+0.6)}</span>Sent to e-Challan · ref EC-J01-000317</div>`;
+      el('ov').querySelector('.dash').insertAdjacentHTML('beforeend','<div class="toast">Violation approved · evidence kept in police custody · exported to e-Challan</div>')}
+    if(t>11.4&&this._st===2){this._st=3;cur.classList.remove('click');bA.classList.remove('pressed')}
+    if(this._st<2)el('audit').innerHTML=`<div><span class="t">${clock(simT-3)}</span>Evidence stored · SHA-256 verified</div>`}
+},
+{ kick:'Step 8 · Stay in control',title:'Remote Yellow Mode, one click from the control room',dur:24,
+  text:'Authorised staff can switch any junction to blinking yellow with one click. The command reaches the junction in under half a second and every action is logged with who did it and when. Drivers proceed with caution, and the junction reverts automatically when the timer ends or the operator switches it back.',
+  cam:{x:-22,y:-2,w:86},
+  enter(){if(ctrl.mode==='flash')setMode('adaptive');setMode('adaptive');Object.assign(FX,{fov:0,boxes:0,trails:0,zones:0,dim:0,fibre:0,labels:[]});this._st=0;
+    setPanels(`<div class="pnl" style="left:1.6%;top:3%;width:30%">
+      <span class="tag amber">Dashboard · Remote Yellow Mode</span><h3>Junction J-01</h3>
+      <div class="row" style="grid-template-columns:1fr auto"><span style="color:var(--muted)">Your role</span><span>Traffic Inspector (RBAC)</span></div>
+      <div class="row" style="grid-template-columns:1fr auto"><span style="color:var(--muted)">Auto-revert after</span><span class="mono">15 min</span></div>
+      <div class="row" style="grid-template-columns:1fr auto"><span style="color:var(--muted)">Current mode</span><span id="ymode">AI adaptive</span></div>
+      <div style="display:flex;gap:.6cqw;margin:1cqw 0 .6cqw"><span class="btn y" id="bY">Blink yellow</span><span class="btn" id="bN">Back to normal</span></div>
+      <h4>Audit log</h4><div class="log" id="ylog"></div>
+      <svg class="cursor" id="cur" viewBox="0 0 24 24" style="left:80%;top:95%"><path d="M3 2l7 19 2.5-7.5L20 11z" fill="#fff" stroke="#000" stroke-width="1.2"/></svg></div>`)},
+  tick(t){},
+  update(t){
+    const cur=el('cur'),pnl=cur.parentElement;const mv=(b)=>{const r=b.getBoundingClientRect(),o=pnl.getBoundingClientRect();cur.style.left=(r.left+r.width*.5-o.left)+'px';cur.style.top=(r.top+r.height*.6-o.top)+'px'};
+    if(t>1.2&&this._st===0){this._st=1;mv(el('bY'))}
+    if(t>2.6&&this._st===1){this._st=2;cur.classList.add('click');el('bY').classList.add('pressed');this._log=[`<div><span class="t">${clock(simT)}</span>Inspector 0142 · Yellow ON · J-01</div>`]}
+    if(t>3.05&&this._st===2){this._st=3;setMode('flash');this._log.unshift(`<div><span class="t">${clock(simT)}</span>Junction confirmed in 0.45 s</div>`);cur.classList.remove('click');el('bY').classList.remove('pressed')}
+    if(t>17&&this._st===3){this._st=4;mv(el('bN'))}
+    if(t>18.4&&this._st===4){this._st=5;cur.classList.add('click');setMode('adaptive');this._log.unshift(`<div><span class="t">${clock(simT)}</span>Inspector 0142 · back to normal · all-red first</div>`)}
+    el('ymode').innerHTML=ctrl.mode==='flash'?'<span style="color:#ffd166">Blinking yellow</span>':'AI adaptive';
+    el('ylog').innerHTML=(this._log||[`<div><span class="t">${clock(simT-600)}</span>Last change · no actions today</div>`]).join('')}
+},
+{ kick:'Fail-safe by design',title:'The lights never depend on the network',dur:26,
+  text:'Safety is built in. If a camera freezes, that lane falls back to its historical traffic profile. If the fibre link is cut, the junction keeps adapting on its own and buffers its data until the link returns. If the AI unit itself fails, the controller falls back to its fixed-time plan.',
+  cam:{x:-18,y:-6,w:132},
+  enter(){if(ctrl.mode==='flash')setMode('adaptive');setMode('adaptive');Object.assign(FX,{fov:0,boxes:0,trails:0,zones:0,dim:0,fibre:1,cut:false,labels:[]});this._st=0;ctrl.frozenN=false;ctrl.link=true;ctrl.buffered=0;
+    setPanels(`<div class="pnl" style="left:1.6%;top:3%;width:29%">
+      <span class="tag cyan">Health monitor · Junction J-01</span><h3>Supervision &amp; fallback</h3>
+      <div id="hm"></div><h4>Events</h4><div class="log" id="hlog"></div></div>
+      <div class="pnl inset" style="right:1.6%;top:3%;width:33%"><canvas id="camc" width="640" height="360"></canvas><div class="cap"><span class="rec"></span>CAM N-01</div></div>`)},
+  update(t){
+    if(t>2&&this._st===0){this._st=1;ctrl.frozenN=true;logc('Camera N frozen · lane degraded · historical profile','y')}
+    if(t>8&&this._st===1){this._st=2;ctrl.frozenN=false;ctrl.link=false;FX.cut=true;logc('Fibre link down · signals continue locally','r')}
+    if(t>14&&this._st===2){this._st=3;ctrl.link=true;FX.cut=false;logc('Link restored · synced '+Math.round(ctrl.buffered)+' buffered events','g')}
+    if(t>16.5&&this._st===3){this._st=4;setMode('fallback')}
+    if(t>23&&this._st===4){this._st=5;setMode('adaptive')}
+    const row=(n,ok,txt)=>`<div class="row" style="grid-template-columns:1fr auto"><span>${n}</span><span style="color:${ok===1?'#7debae':ok===0?'#ff8a8a':'#ffcf6e'}">${txt}</span></div>`;
+    el('hm').innerHTML=row('Camera N-01',ctrl.frozenN?2:1,ctrl.frozenN?'frozen · degraded':'OK')+row('Cameras E, S, W',1,'OK')+row('Fibre link to station',ctrl.link?1:0,ctrl.link?'OK':'down · '+Math.round(ctrl.buffered)+' events buffered')+row('AI decision engine',ctrl.mode==='fallback'?0:1,ctrl.mode==='fallback'?'fault · fixed-time plan':'OK')+row('Controller I/O heartbeat',1,'1 Hz OK');
+    el('hlog').innerHTML=ctrl.log.filter(l=>l.kind!=='g'||/restored|engaged/.test(l.txt)).slice(0,5).map(l=>`<div><span class="t">${clock(l.t)}</span>${l.txt}</div>`).join('')}
+},
+{ kick:'Delivery',title:'Live in 10–13 weeks',dur:22,
+  text:'Nivosk delivers the software, the AI models, integration and deployment in ten to thirteen weeks. Rapturous provides the cameras, poles, roadside box, fibre link and police station rack. Intelligence. Innovation. Impact.',
+  cam:{x:0,y:-4,w:150},
+  enter(){if(ctrl.mode!=='adaptive'){ctrl.frozenN=false;ctrl.link=true;FX.cut=false;setMode('adaptive')}Object.assign(FX,{fov:0,boxes:0,trails:0,zones:0,dim:1,fibre:0,labels:[]});
+    const bar=(s,e,c)=>`<div class="b" style="grid-column:${s+1}/${e+2};background:${c}"></div>`;
+    const G=[['Requirement finalisation',1,2,'#5d708c'],['Design & planning',3,3,'#5d708c'],['Hardware setup (Rapturous)',4,5,'#f28c28'],['Data, models & software',4,8,'#4cc9f0'],['Integration',9,9,'#19a9a1'],['Testing, calibration, UAT',10,11,'#ffb21f'],['Go-live & handover',12,12,'#2fd27a'],['Buffer',13,13,'#33415a']];
+    setPanels(`<div class="pnl" style="left:3%;top:8%;width:94%;padding:1.8cqw 2cqw;background:rgba(8,15,28,.94)">
+      <div style="display:flex;align-items:center;gap:1.4cqw"><div class="logochip"><img src="${LOGO}" alt="NIVOSK" style="height:3cqw"></div><div><span class="tag sun">What Nivosk delivers</span><div style="font-family:var(--display);font-weight:600;font-size:2.6cqw;line-height:1.05;margin-top:.3cqw">Four modules, one junction-plus-police-station system</div></div></div>
+      <div class="cols" style="margin-top:1.4cqw;grid-template-columns:1fr 1.35fr">
+        <div><div class="mlist">
+          <div><i>01</i><b>Adaptive AI Signal Control</b></div><div style="color:var(--muted);font-size:1cqw;margin:-.3cqw 0 .3cqw 2cqw">edge inference + decision engine, fixed-time fallback on any fault</div>
+          <div><i>02</i><b>Vehicle Monitoring Dashboard</b></div><div style="color:var(--muted);font-size:1cqw;margin:-.3cqw 0 .3cqw 2cqw">live and historical counts, classes, heatmaps, reports</div>
+          <div><i>03</i><b>Remote Yellow Mode</b></div><div style="color:var(--muted);font-size:1cqw;margin:-.3cqw 0 .3cqw 2cqw">one-click caution mode, RBAC, timed auto-revert, audit log</div>
+          <div><i>04</i><b>ANPR / Violation Detection</b></div><div style="color:var(--muted);font-size:1cqw;margin:-.3cqw 0 .3cqw 2cqw">plate reading, evidence packets, officer review, e-Challan export</div></div>
+          <div class="ms"><div><b>≥95%</b>vehicle detection</div><div><b>≥93%</b>classification</div><div><b>&lt;2 s</b>frame → signal</div><div><b>≤0.5 s</b>command</div><div><b>≤120 s</b>full cycle</div></div></div>
+        <div><h4 style="margin-top:0">Delivery plan · weeks</h4>
+          <div class="gantt"><span></span>${Array.from({length:13},(_,i)=>`<span class="h">${i+1}</span>`).join('')}
+          ${G.map(([n,s,e,c],r)=>`<span class="lb" style="grid-row:${r+2};grid-column:1">${n}</span><div class="b" style="grid-row:${r+2};grid-column:${s+1}/${e+2};background:${c}"></div>`).join('')}</div>
+          <div class="ms"><div><b>40%</b>on purchase order</div><div><b>30%</b>on UAT sign-off</div><div><b>20%</b>on go-live</div><div><b>10%</b>on handover</div></div>
+          <p style="font-size:1cqw;color:var(--muted);margin-top:.8cqw"><b style="color:#ffb26b">Rapturous provides</b> poles, cameras, signal hardware, roadside box, fibre link and police station rack. <b style="color:#8edcf6">Nivosk provides</b> AI software, dashboard, deployment and support.</p></div>
+      </div>
+      <div class="contact"><span><b>NIVOSK Technologies Pvt. Ltd.</b> · Delhi / NCR</span><span>Info@nivosk.com</span><span>Sales: Nitin@nivosk.com</span><span>8126240007</span><span>www.nivosk.com</span><span style="margin-left:auto;color:var(--sun);font-family:var(--display);font-weight:600;letter-spacing:.12em">INTELLIGENCE. INNOVATION. IMPACT.</span></div>
+    </div>`)}
+}
+];
+
+/* ============================ player ============================ */
+let sceneIdx=0,sceneT=0,playing=true,last=0,dtFrame=0.016,updT=0,speaking=false,voiceOn=false,ended=false;
+const rail=$('rail');
+SCENES.forEach((s,i)=>{const b=document.createElement('button');b.className='seg';b.innerHTML=`<div class="pb"><i></i></div><span>${i===0?'Intro':s.kick.replace(/^Step[s]? [\d–]+ · /,'')}</span>`;b.title=s.title;b.setAttribute('aria-label','Chapter '+(i+1)+': '+s.title);b.onclick=()=>go(i);rail.appendChild(b)});
+function go(i){
+  sceneIdx=clamp(i,0,SCENES.length-1);sceneT=0;ended=false;const s=SCENES[sceneIdx];
+  if(ctrl.excluded&&sceneIdx!==7)ctrl.excluded=null;
+  s.enter&&s.enter.call(s);
+  Object.assign(target,s.cam||{});if(s.cam&&s.cam.snap){Object.assign(view,s.cam)}
+  $('kick').textContent=(sceneIdx+1)+' / '+SCENES.length+' · '+s.kick;$('ctitle').textContent=s.title;$('ctext').textContent=s.text;
+  [...rail.children].forEach((b,k)=>{b.classList.toggle('cur',k===sceneIdx);b.classList.toggle('done',k<sceneIdx);b.querySelector('i').style.width=k<sceneIdx?'100%':'0'});
+  speak(s.text);updT=1;
+}
+function speak(text){
+  if(!('speechSynthesis' in window))return;try{speechSynthesis.cancel()}catch(e){}speaking=false;
+  if(!voiceOn||!playing)return;
+  try{const u=new SpeechSynthesisUtterance(text);const vs=speechSynthesis.getVoices();u.voice=vs.find(v=>/en-IN/i.test(v.lang))||vs.find(v=>/en-GB/i.test(v.lang))||vs.find(v=>/^en/i.test(v.lang))||null;u.rate=1.0;u.onend=()=>{speaking=false};u.onerror=()=>{speaking=false};speaking=true;speechSynthesis.speak(u)}catch(e){speaking=false}
+}
+function setPlaying(p){playing=p;$('bPlay').setAttribute('aria-label',p?'Pause':'Play');$('playIco').innerHTML=p?'<path d="M6 5h4v14H6zM14 5h4v14h-4z"/>':'<path d="M7 5v14l12-7z"/>';
+  if('speechSynthesis' in window){try{p?speechSynthesis.resume():speechSynthesis.pause()}catch(e){}}
+  if(p&&ended){go(0)}}
+$('bPlay').onclick=()=>setPlaying(!playing);
+$('bPrev').onclick=()=>go(sceneIdx-1);$('bNext').onclick=()=>go(sceneIdx+1);
+if(!('speechSynthesis' in window))$('bVoice').hidden=true;
+$('bFs').onclick=()=>{try{if(document.fullscreenElement)document.exitFullscreen();else{const r=stage.requestFullscreen&&stage.requestFullscreen();if(r&&r.catch)r.catch(()=>{})}}catch(e){}};
+if(!stage.requestFullscreen)$('bFs').hidden=true;
+$('bVoice').onclick=()=>{voiceOn=!voiceOn;$('bVoice').classList.toggle('on',voiceOn);$('bVoice').setAttribute('aria-pressed',voiceOn);if(voiceOn){speak(SCENES[sceneIdx].text)}else{try{speechSynthesis.cancel()}catch(e){}speaking=false}};
+document.addEventListener('keydown',e=>{if(e.target.closest('input,textarea'))return;if(e.code==='Space'){e.preventDefault();setPlaying(!playing)}if(e.key==='ArrowRight')go(sceneIdx+1);if(e.key==='ArrowLeft')go(sceneIdx-1)});
+
+function frame(ts){
+  const dt=Math.min(0.05,last?(ts-last)/1000:0.016);last=ts;dtFrame=dt;
+  const s=SCENES[sceneIdx];
+  if(playing){
+    simulate(dt);walkStep(dt);for(const c of clouds){c.x+=c.v*dt;if(c.x>220)c.x=-220}
+    sceneT+=dt;s.tick&&s.tick.call(s,sceneT,dt);
+    if(sceneT>=s.dur&&!speaking){if(sceneIdx<SCENES.length-1)go(sceneIdx+1);else{ended=true;setPlaying(false)}}
+  }
+  const segI=rail.children[sceneIdx]&&rail.children[sceneIdx].querySelector('i');if(segI)segI.style.width=clamp(sceneT/s.dur,0,1)*100+'%';
+  render(ts/1000);
+  const cc=document.getElementById('camc');
+  if(cc){if(ctrl.frozenN&&cc._frozen){drawFrozen(cc)}else{drawInset(cc,{boxes:sceneIdx>=3&&sceneIdx!==2,ids:sceneIdx===3,zones:sceneIdx===4});cc._frozen=ctrl.frozenN}}
+  const cs=SCENES[sceneIdx];updT+=dt;if(updT>0.18&&cs.update){updT=0;try{cs.update.call(cs,sceneT)}catch(e){}}
+  const tt=Math.floor(sceneT);$('tm').textContent=Math.floor(tt/60)+':'+String(tt%60).padStart(2,'0')+' / '+Math.floor(cs.dur/60)+':'+String(cs.dur%60).padStart(2,'0');
+  requestAnimationFrame(frame);
+}
+function start(){
+  bgCanvas=buildBackground();
+  resetSim();simulate(1.5);
+  go(0);Object.assign(view,SCENES[0].cam);
+  if(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches)setPlaying(false);
+  requestAnimationFrame(frame);
+}
+window.__demo={sim:(T)=>{for(let i=0;i<T*50;i++)simulate(0.02);let stuck=0,maxStop=0;for(const v of vehicles){if(v.v<0.1){v._st=(v._st||0)}};return{n:vehicles.length,simT,mode:ctrl.mode,box:vehicles.filter(v=>inBox(v)&&v.v<0.2).length,met:APPS.map(a=>a+':'+Math.round(MET[a].queue)+'m/'+MET[a].backlog).join(' '),crossed:STATS.crossed,waste:STATS.waste}},setMode,go,SCENES,get state(){return{sceneIdx,sceneT,simT,n:vehicles.length,ctrl:{...ctrl,log:undefined},MET,STATS,VIOL:!!VIOL}},setPlaying};
+const fontsReady=document.fonts&&document.fonts.load?Promise.all(["600 16px 'Barlow Condensed'","500 14px Barlow","600 12px 'JetBrains Mono'"].map(f=>document.fonts.load(f))).catch(()=>{}):Promise.resolve();
+Promise.race([fontsReady,new Promise(r=>setTimeout(r,1500))]).then(start);
+})();
+</script>
+
+</body></html>
